@@ -1,17 +1,4 @@
-// Copyright 2023 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-chrome.devtools.panels.create('demo panel', 'icon.png', 'panel.html', () => {
-  console.log('user switched to this panel');
+chrome.devtools.panels.create('You Chat Extractor',
+  "data:image/svg+xml;base64," + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><rect width="24" height="24" rx="4" fill="#4285f4"/><path d="M5 5h10c1.1 0 2 .9 2 2v6c0 1.1-.9 2-2 2h-2.5l-2.5 2.5-2.5-2.5H5c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2z" fill="white"/><path d="M18 14l3 3-3 3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'), 'panel.html', () => {
+  console.log('You Chat Extraction devtools panel open');
 });
