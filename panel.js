@@ -126,6 +126,17 @@ Link: [${document.location.host.replace("www.", "")}](${full_url})
 										// Prepare styling
 										const style = document.createElement('style');
 										style.textContent = `
+  .devtools-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(51,51,51);
+    border-radius: 8px;
+    padding: 20px;
+    padding-top: 40px; /* Increased top padding for more space */
+    z-index: 9999;
+  }
+
   .devtools-button {
     background-color: #4285f4;
     color: white;
@@ -143,21 +154,58 @@ Link: [${document.location.host.replace("www.", "")}](${full_url})
     background-color: #3367d6;
   }
 
-  .button-container {
-    position: fixed;
+  .close-button {
+    position: absolute;
     top: 10px;
     right: 10px;
+    width: 24px;
+    height: 24px;
+    background-color: #808080;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
     display: flex;
-    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .close-button::before,
+  .close-button::after {
+    content: '';
+    position: absolute;
+    width: 18px; /* Increased from 12px to almost fill the box */
+    height: 2px;
+    background-color: white;
+  }
+
+  .close-button::before {
+    transform: rotate(45deg);
+  }
+
+  .close-button::after {
+    transform: rotate(-45deg);
   }
 `;
 										document.head.appendChild(style);
-										// Container for the buttons
-										const buttonContainer = document.createElement('div');
-										buttonContainer.classList.add('button-container');
-										buttonContainer.appendChild(downButton);
-										buttonContainer.appendChild(copyButton);
-										document.body.appendChild(buttonContainer);
+
+										const container = document.createElement('div');
+										container.classList.add('devtools-container');
+										// Create close button
+										const closeButton = document.createElement('button');
+										closeButton.classList.add('close-button');
+										closeButton.textContent = '×';
+										closeButton.addEventListener('click', () => {
+											document.body.removeChild(container);
+										});
+
+
+										// Add elements to container
+										container.appendChild(closeButton);
+										container.appendChild(downButton);
+										container.appendChild(copyButton);
+
+										// Add container to document body
+										document.body.appendChild(container);
 									},
 									args: [dataString, tags]
 								})
