@@ -14,7 +14,6 @@ genButton.addEventListener('click', async () => {
 	hostUrl = url_object.host.replace("www.", "");
 
 	chrome.devtools.network.onRequestFinished.addListener(async (request) => {
-		console.log("request", request);
 		if (!request.request.url.startsWith('https://you.com/api/streamingSavedChat')) return;
 
 		const content = await new Promise((resolve) => request.getContent(resolve));
