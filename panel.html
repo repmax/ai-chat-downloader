@@ -1,90 +1,225 @@
-<!doctype html>
-<html style="display: flex">
-  <head>
-    <meta charset="utf8" />
-		<style>
-      body {
-        margin: 10px;
-        font-family: Arial, sans-serif;
-        background-color: #f5f5f5;
-      }
-      
-      div#ui {
-        display: flex;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 10px;
-        max-width: 100%;
-      }
+<!DOCTYPE html>
+<html lang="en">
 
-      #tagInput, #yousearch {
-        font-size: 16px;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-sizing: border-box;
-      }
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>You.com Chat Downloader</title>
+	<style>
+		body,
+		html {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			font-family: Arial, sans-serif;
+			background-color: #fff;
+		}
 
-      #tagInput {
-        flex: 1;
-        min-width: 0;
-        width: 100%;
-      }
+		.container {
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+			width: 100%;
+			max-width: 500px;
+			margin: 0;
+			padding: 20px;
+			box-sizing: border-box;
+		}
 
-      #yousearch {
-        background-color: #4a90e2;
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        white-space: nowrap;
-      }
+		.title {
+			font-size: 20px;
+			margin-bottom: 10px;
+		}
 
-      #yousearch:hover {
-        background-color: #3a7bc8;
-      }
+		.button {
+			width: 150px;
+			padding: 10px;
+			margin-top: 10px;
+			border: none;
+			border-radius: 5px;
+			background-color: #007bff;
+			color: #fff;
+			cursor: pointer;
+			font-size: 16px;
+		}
 
-      .content-container {
-        max-width: 500px;
-        width: 100%;
-        margin: 0 auto;
-      }
+		.button.inactive {
+			background-color: grey;
+			cursor: not-allowed;
+		}
 
-      .content-container pre {
-        white-space: pre-wrap;
-        word-wrap: break-word;
-      }
+		.textarea {
+			flex-grow: 1;
+			margin: 10px 0;
+			padding: 10px;
+			border: 1px solid #ccc;
+			border-radius: 5px;
+			box-sizing: border-box;
+			font-family: monospace;
+			resize: none;
+		}
 
-      @media (max-width: 480px) {
-        div#ui {
-          flex-direction: column;
-        }
+		.filename {
+			width: 100%;
+			max-width: 500px;
+			padding: 10px;
+			margin: 10px 0;
+			border: 1px solid #ccc;
+			border-radius: 5px;
+			box-sizing: border-box;
+		}
 
-        #tagInput, #yousearch {
-          width: 100%;
-        }
-      }
-    </style>
-  </head>
-  <body>
-		<div class="content-container">
-<h2>You Chat Extraction</h2>
+		.footer {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+		}
 
-<pre>Ensure you're on you.com with a chat session in the active tab.</pre>
-<pre>This tool triggers a page reload to force a full chat re-render in markdown format from the server.</pre>
-<pre>Post-execution, two control buttons will manifest in the upper-left quadrant of the active tab, because information cannot be passed directly from DevTools panel.</pre>
-<pre>Data Retrieval Options:</pre>
-<ul>
-	<li><pre><b>Copy to Clipboard</b>: Copy the chat as markdown to clipboard.</pre></li>
-	<li><pre><b>Download File</b>: Download the chat to a markdown file.</pre></li>
-</ul>
-<pre>Prior to extraction, you can specify tags for inclusion in the markdown frontmatter. This feature is particularly beneficial for users leveraging advanced knowledge management systems like Obsidian for note organization and retrieval.</pre>
+		label {
+			margin-top: 10px;
+			font-weight: bold;
+		}
 
-</div>
-		<div id="ui">
-			<input type="text" id="tagInput" placeholder="Enter 'tag1,tag2' here">
-			<button id="yousearch">Scrape You Chat</button>
+		.info-icon {
+			position: absolute;
+			top: 20px;
+			right: 20px;
+			cursor: pointer;
+		}
+
+		.modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+			justify-content: center;
+			align-items: center;
+		}
+
+		.modal-content {
+			margin: 10px;
+			background-color: #fff;
+			padding: 20px;
+			border-radius: 5px;
+			max-width: 500px;
+			width: 100%;
+			box-sizing: border-box;
+		}
+
+		.close-btn {
+			background: none;
+			border: none;
+			cursor: pointer;
+			padding: 0;
+			color: #000;
+			float: inline-end;
+		}
+
+		.close-btn svg {
+			width: 24px;
+			height: 24px;
+		}
+
+		.hideable {
+			display: flex;
+			flex-direction: column;
+			flex-grow: 1;
+		}
+
+		.hideable.hidden {
+			display: none !important;
+		}
+
+		.spinner.hidden {
+			display: none !important;
+		}
+
+		.spinner {
+			width: 40px;
+			height: 40px;
+			border-radius: 50%;
+			border: 4px solid #f3f3f3;
+			border-top: 4px solid #3498db;
+			animation: spin 1s linear infinite;
+			margin: 40px;
+		}
+
+		@keyframes spin {
+			0% {
+				transform: rotate(0deg);
+			}
+
+			100% {
+				transform: rotate(360deg);
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="title">You.com Chat Downloader</div>
+		<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+			<circle cx="12" cy="12" r="10" fill="#007bff" />
+			<rect x="11" y="7" width="2" height="2" fill="white" />
+			<rect x="11" y="10" width="2" height="7" fill="white" />
+		</svg>
+		<button id="generateBtn" class="button">Generate</button>
+		<div class="spinner hidden"></div>
+		<div class="hideable hidden">
+			<label for="markdown">Markdown</label>
+			<textarea id="markdown" class="textarea" placeholder="Enter markdown here..."></textarea>
+			<div class="footer">
+				<label for="filename">Filename</label>
+				<input type="text" id="filename" class="filename" placeholder="Enter filename here...">
+				<button id="downloadBtn" class="button">Download</button>
+			</div>
 		</div>
-    <script src="panel.js"></script>
-  </body>
+		<div id="infoModal" class="modal">
+			<div class="modal-content">
+				<button id="closeModal" class="close-btn">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+						stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18"></line>
+						<line x1="6" y1="6" x2="18" y2="18"></line>
+					</svg>
+				</button>
+				<div>
+					<h2>Welcome to You.com Chat Downloader!</h2>
+					<p>
+						This browser extension allows you to capture and download entire chat sessions from You.com in markdown
+						format. AI chat bot services offer only to grab a single response at a time, this tool grabs the full chat
+						directly from the You.com servers.
+					</p>
+					<h2>Key Features:</h2>
+					<ul>
+						<li>Retrieve full chat sessions in markdown format, including frontmatter.</li>
+						<li>Customize tags, date, title, or any other properties before downloading.</li>
+						<li>Modify the filename to your preference.</li>
+					</ul>
+					<h2>Usage Instructions:</h2>
+					<ol>
+						<li>Ensure your current tab is a chat session on You.com.</li>
+						<li>Click the "Generate" button. A reload of the page will be triggered to fetch the latest chat data.</li>
+						<li>Edit the markdown content and frontmatter as needed.</li>
+						<li>Change the filename if desired.</li>
+						<li>Click "Download" to save the markdown file.</li>
+					</ol>
+					<p>
+						This extension is ideal for users leveraging advanced knowledge management systems like Obsidian. Archive
+						longer conversations and compare responses from different language models with ease.
+					</p>
+					<p>Enjoy using You.com Chat Downloader!</p>
+				</div>
+			</div>
+		</div>
+		<script src="panel.js"></script>
+</body>
+
 </html>

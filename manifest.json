@@ -1,12 +1,12 @@
 {
-  "name": "You Chat Extraction",
-  "description": "Extract chat markdown directly from servers and prepares for copy to clipboard or file download",
+  "name": "You.com Chat Downloader",
+  "description": "Download You.com chat as markdown file",
   "version": "1.0",  "icons": {
     "36": "you_36.png",
     "144": "you_144.png"
   },
   "manifest_version": 3,
-  "permissions": ["clipboardWrite","webRequest","activeTab","scripting","tabs"],
+  "permissions": ["webRequest","activeTab","scripting"],
   "host_permissions": ["https://you.com/*"],
   "devtools_page": "devtools.html"
 }
