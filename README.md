@@ -34,6 +34,15 @@ Assuming you have a chat session open in the current tab in your browser:
 5. Modify the filename if desired.
 6. Press the "Download" button to download the markdown file.
 
+The main view:
+![](screenshots/youcom-chat-downloader_01.jpg)
+
+Markdown ready to be edited and downloaded:
+![](screenshots/youcom-chat-downloader_02.jpg)
+
+The information modal:
+![](screenshots/youcom-chat-downloader_03.jpg)
+
 ## Contributing
 
 Contributions are welcome! Please submit a pull request or open an issue to suggest improvements or report bugs.
