@@ -69,7 +69,7 @@ genButton.addEventListener('click', async () => {
 
 function createFrontMatter(titleRaw) {
 	const stopwords = ['i', 'write', 'you', 'me', 'the', 'is', 'are', 'for', 'in', 'this', 'who', 'what', 'when', 'how', 'why', 'should', 'can', 'did', 'do', 'tell', 'write', 'act', 'as', 'a', 'an'];
-	const titleClean = titleRaw.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, ' ').substring(0, 50);
+	const titleClean = titleRaw.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, ' ').substring(0, 70);
 	const now = new Date();
 	const dashedDate = now.toISOString().substring(0, 10);
 	const shortDate = dashedDate.replace(/[^0-9]/g, "");
@@ -77,7 +77,7 @@ function createFrontMatter(titleRaw) {
 		.map(item => item.trim())
 		.filter((item) => !stopwords.includes(item.toLowerCase()))
 		.reduce((shortened, word) =>
-			shortened.length + word.length + 1 <= 35 ? shortened + word + ' ' : shortened, '')
+			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
 	const condensedTitle = rinseTitle.toLowerCase().trim().replace(/ /g, "_");
 	const slug = `prmt-${condensedTitle}-${shortDate}`;

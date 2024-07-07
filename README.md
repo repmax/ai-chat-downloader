@@ -14,6 +14,9 @@ You.com Chat Downloader is a powerful devtool browser extension designed to capt
 
 This extension is particularly beneficial for users utilizing advanced knowledge management systems like Obsidian for note organization and retrieval. It enables archiving of longer conversations and comparison of responses from different large language models.
 
+The main view:
+![](screenshots/youcom-chat-downloader_01.jpg)
+
 ## Installation
 
 1. Clone this repository to your local machine.
@@ -33,9 +36,6 @@ Assuming you have a chat session open in the current tab in your browser:
 4. Review and edit the markdown content and frontmatter.
 5. Modify the filename if desired.
 6. Press the "Download" button to download the markdown file.
-
-The main view:
-![](screenshots/youcom-chat-downloader_01.jpg)
 
 Markdown ready to be edited and downloaded:
 ![](screenshots/youcom-chat-downloader_02.jpg)
