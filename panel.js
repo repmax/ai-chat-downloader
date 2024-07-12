@@ -106,6 +106,7 @@ Link: [${hostUrl}](${fullUrl})
 
 function createMarkdown(data, frontmatter) {
 	return frontmatter + "\n***\n" + data.chat.map(chat => {
+		// yousearch uses [[number]] as reference link. 
 		let item = `
 **PROMPT** >>>>>>
 
@@ -113,7 +114,7 @@ ${chat.question}
 
 **BOT** > ${chat.ai_model} >>>>>>
 
-${chat.answer}
+${chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]")}
 `;
 		if (chat.serp_results && chat.serp_results.length > 0) {
 			item += `
