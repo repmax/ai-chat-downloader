@@ -112,7 +112,7 @@ function createMarkdown(data, frontmatter) {
 
 ${chat.question}
 
-**BOT** > ${chat.ai_model} >>>>>>
+**BOT** > ${chat.ai_model || chat.chat_mode} >>>>>>
 
 ${chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]")}
 `;
