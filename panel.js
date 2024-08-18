@@ -5,30 +5,36 @@ const filenameInput = document.getElementById('filename');
 let fullUrl, hostUrl;
 
 genButton.addEventListener('click', async () => {
-	const tabs = await chrome.tabs.query({ active: true, windowId: (await chrome.windows.getCurrent()).id });
-	const activeTabId = tabs?.[0]?.id;
-	if (!activeTabId) return;
-	fullUrl = tabs[0].url;
-	const url_object = new URL(fullUrl);
-	hostUrl = url_object.host.replace("www.", "");
+	const [tab] = await chrome.tabs.query({ active: true,windowId: (await chrome.windows.getCurrent()).id });
+	if (!tab?.id) return;
 
-	let bot, networkID;
-	if (fullUrl.includes("claude.ai")) {
-		bot = "claude";
-		const match = fullUrl.match(/\/chat\/([^/?]+)/);
-		networkID = match[1];
-	} else if (fullUrl.includes("you.com")) {
-		bot = "you";
-		networkID = "streamingSavedChat";
-	} else if (fullUrl.includes("perplexity.ai")) {
-    bot = "perplexity";
-		const match = fullUrl.match(/\/search\/([^/?]+)/);
-		networkID = match[1];
-		} else {
-		console.log("Unrecognized page");
-		document.querySelector('#message').classList.remove('hidden');
-		return;
-	}
+	fullUrl = tab.url;
+	const { host } = new URL(fullUrl);
+	hostUrl = host.replace("www.", "");
+
+// Improved version
+const getBotInfo = (url) => {
+  if (url.includes("claude.ai")) {
+    const match = url.match(/\/chat\/([^/?]+)/);
+    return { bot: "claude", networkID: match?.[1] };
+  } 
+  if (url.includes("you.com")) {
+    return { bot: "you", networkID: "streamingSavedChat" };
+  } 
+  if (url.includes("perplexity.ai")) {
+    const match = url.match(/\/search\/([^/?]+)/);
+    return { bot: "perplexity", networkID: match?.[1] };
+  }
+  return { bot: null, networkID: null };
+};
+
+const { bot, networkID } = getBotInfo(fullUrl);
+if (!bot) {
+  console.log("Unrecognized page");
+  document.querySelector('#message').classList.remove('hidden');
+  return;
+}
+
 	document.querySelector('.spinner').classList.remove('hidden');
 	document.querySelector('#message').classList.add('hidden');
 
@@ -103,7 +109,7 @@ genButton.addEventListener('click', async () => {
 	}
 	}
 	chrome.devtools.network.onRequestFinished.addListener(listener);
-	chrome.tabs.reload(activeTabId);
+	chrome.tabs.reload(tab.id);
 });
 
 function downFunction() {
@@ -132,14 +138,14 @@ function downFunction() {
 }
 
 function createFrontMatter(titleRaw, created_at = '') {
-	const stopwords = ['i', 'write', 'you', 'me', 'the', 'is', 'are', 'for', 'in', 'this', 'who', 'what', 'when', 'how', 'why', 'should', 'can', 'did', 'do', 'tell', 'write', 'act', 'as', 'a', 'an'];
+	const stopwords = new Set(['i', 'write', 'you', 'me', 'the', 'is', 'are', 'for', 'in', 'this', 'who', 'what', 'when', 'how', 'why', 'should', 'can', 'did', 'do', 'tell', 'write', 'act', 'as', 'a', 'an']);
 	const titleClean = titleRaw.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, ' ').substring(0, 70);
 	const now = new Date();
 	const dashedDate = now.toISOString().substring(0, 10);
 	const shortDate = dashedDate.replace(/[^0-9]/g, "");
 	const rinseTitle = titleClean.split(' ')
 		.map(item => item.trim())
-		.filter((item) => !stopwords.includes(item.toLowerCase()))
+		.filter((item) => !stopwords.has(word.toLowerCase()))
 		.reduce((shortened, word) =>
 			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
@@ -199,14 +205,10 @@ function createMarkdownPerplexity(data) {
 		let source = "";
 		let textJson = JSON.parse(val.text);
 		if (Array.isArray(textJson)) {
-			let stepObj = textJson.reduce((acc, item) => ({ ...acc, [item.step_type]: item }), {});
-			if ("FINAL" in stepObj) {
-				answerObj = JSON.parse(stepObj.FINAL.content.answer);
-				chat += answerObj.answer + "\n\n";
-				if ('image_metadata' in answerObj && answerObj.image_metadata.length) {
-					chat += answerObj.image_metadata.map((val) => { return `[![${val.name}](${val.thumbnail})](${val.image})` }).join("\n");
-				}
-			}
+			let stepObj = Object.fromEntries(textJson.map(item => [item.step_type, item]));
+			const answerObj = JSON.parse(stepObj.FINAL?.content?.answer ?? '{}');
+			chat += answerObj.answer ? `${answerObj.answer}\n\n` : '';
+			chat += answerObj.image_metadata?.map(val => `[![${val.name}](${val.thumbnail})](${val.image})`)?.join("\n") ?? '';
 			if ("SEARCH_RESULTS" in stepObj && stepObj.SEARCH_RESULTS.content.web_results.length) {
 				source += stepObj.SEARCH_RESULTS.content.web_results.map((val) => { return `1. [${val.name}](${val.url})` }).join("\n");
 			}
