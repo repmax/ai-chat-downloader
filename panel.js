@@ -20,7 +20,11 @@ genButton.addEventListener('click', async () => {
 	} else if (fullUrl.includes("you.com")) {
 		bot = "you";
 		networkID = "streamingSavedChat";
-	} else {
+	} else if (fullUrl.includes("perplexity.ai")) {
+    bot = "perplexity";
+		const match = fullUrl.match(/\/search\/([^/?]+)/);
+		networkID = match[1];
+		} else {
 		console.log("Unrecognized page");
 		document.querySelector('#message').classList.remove('hidden');
 		return;
@@ -74,7 +78,29 @@ genButton.addEventListener('click', async () => {
 			document.querySelector('.spinner').classList.add('hidden');
 			document.querySelector('.hideable').classList.remove('hidden');
 			chrome.devtools.network.onRequestFinished.removeListener(listener);
-		}
+		} else if (bot === "perplexity" && request.request.url.includes(networkID)) {
+			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
+			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))){return};
+
+			const response = await new Promise((resolve) => request.getContent(resolve));
+			const data = JSON.parse(response);
+
+			// Process perplexity.ai content here
+			const entries = data.entries;
+			const titleRaw = entries[0].query_str;
+			const created = new Date(entries[0].updated_datetime).toISOString().slice(0, 10);
+			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
+
+			const markdown = createMarkdownPerplexity(entries);
+			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
+			filenameInput.value = slug + ".md";
+
+			// Prepare download button
+			document.getElementById('downloadBtn').addEventListener('click', downFunction);
+			document.querySelector('.spinner').classList.add('hidden');
+			document.querySelector('.hideable').classList.remove('hidden');
+			chrome.devtools.network.onRequestFinished.removeListener(listener);
+	}
 	}
 	chrome.devtools.network.onRequestFinished.addListener(listener);
 	chrome.tabs.reload(activeTabId);
@@ -160,6 +186,46 @@ ${text}
 		}
 	}).join("");
 }
+
+const inputPrefix = "\n\n**PROMPT** >>>>>>\n\n";
+const outputPrefix = "\n\n**BOT** >>>>>>\n\n";
+
+
+function createMarkdownPerplexity(data) {
+	return data.map((val) => {
+		let chat = "";
+		chat += inputPrefix + val.query_str;
+		chat += outputPrefix;
+		let source = "";
+		let textJson = JSON.parse(val.text);
+		if (Array.isArray(textJson)) {
+			let stepObj = textJson.reduce((acc, item) => ({ ...acc, [item.step_type]: item }), {});
+			if ("FINAL" in stepObj) {
+				answerObj = JSON.parse(stepObj.FINAL.content.answer);
+				chat += answerObj.answer + "\n\n";
+				if ('image_metadata' in answerObj && answerObj.image_metadata.length) {
+					chat += answerObj.image_metadata.map((val) => { return `[![${val.name}](${val.thumbnail})](${val.image})` }).join("\n");
+				}
+			}
+			if ("SEARCH_RESULTS" in stepObj && stepObj.SEARCH_RESULTS.content.web_results.length) {
+				source += stepObj.SEARCH_RESULTS.content.web_results.map((val) => { return `1. [${val.name}](${val.url})` }).join("\n");
+			}
+		} else {
+			chat += textJson.answer + "\n\n";
+			if ("web_results" in textJson && textJson.web_results.length) {
+				source += textJson.web_results.map((val) => { return `1. [${val.name}](${val.url})` }).join("\n");
+			}
+		}
+		if (source) {
+			chat += "**SOURCES** >>>>>>\n\n" + source + "\n\n";
+		}
+		if ("related_queries" in val && val.related_queries.length) {
+			chat += "**RELATED** >>>>>>\n\n" + val.related_queries.map((val) => { return `> [${val}](https://www.google.com/search?q=${encodeURI(val)})` }).join("\n\n");
+		}
+		return chat;
+	}).join("\n***\n");
+}
+
 
 function createMarkdownYou(data) {
 	return data.chat.map(chat => {

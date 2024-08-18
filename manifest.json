@@ -10,6 +10,6 @@
   },
   "manifest_version": 3,
   "permissions": ["webRequest","activeTab","tabs","scripting"],
-  "host_permissions": ["https://you.com/*","https://claude.ai/*","perplexity.ai/*"],
+  "host_permissions": ["https://you.com/*","https://claude.ai/*","https://perplexity.ai/*"],
   "devtools_page": "devtools.html"
 }
