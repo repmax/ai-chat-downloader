@@ -145,7 +145,7 @@ function createFrontMatter(titleRaw, created_at = '') {
 	const shortDate = dashedDate.replace(/[^0-9]/g, "");
 	const rinseTitle = titleClean.split(' ')
 		.map(item => item.trim())
-		.filter((item) => !stopwords.has(word.toLowerCase()))
+		.filter((word) => !stopwords.has(word.toLowerCase()))
 		.reduce((shortened, word) =>
 			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
