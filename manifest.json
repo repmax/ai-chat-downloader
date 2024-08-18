@@ -1,12 +1,15 @@
 {
-  "name": "You.com Chat Downloader",
-  "description": "Download You.com chat as markdown file",
+  "name": "You.com / Claude Chat Downloader",
+  "description": "Download ai chat as markdown file",
   "version": "1.0",  "icons": {
     "36": "you_36.png",
     "144": "you_144.png"
   },
+	"action": {
+    "default_title": "Chat Downloader"
+  },
   "manifest_version": 3,
-  "permissions": ["webRequest","activeTab","scripting"],
-  "host_permissions": ["https://you.com/*"],
+  "permissions": ["webRequest","activeTab","tabs","scripting"],
+  "host_permissions": ["https://you.com/*","https://claude.ai/*","perplexity.ai/*"],
   "devtools_page": "devtools.html"
 }
