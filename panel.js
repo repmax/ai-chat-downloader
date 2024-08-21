@@ -5,35 +5,39 @@ const filenameInput = document.getElementById('filename');
 let fullUrl, hostUrl;
 
 genButton.addEventListener('click', async () => {
-	const [tab] = await chrome.tabs.query({ active: true,windowId: (await chrome.windows.getCurrent()).id });
+	const [tab] = await chrome.tabs.query({ active: true, windowId: (await chrome.windows.getCurrent()).id });
 	if (!tab?.id) return;
 
 	fullUrl = tab.url;
 	const { host } = new URL(fullUrl);
 	hostUrl = host.replace("www.", "");
 
-// Improved version
-const getBotInfo = (url) => {
-  if (url.includes("claude.ai")) {
-    const match = url.match(/\/chat\/([^/?]+)/);
-    return { bot: "claude", networkID: match?.[1] };
-  } 
-  if (url.includes("you.com")) {
-    return { bot: "you", networkID: "streamingSavedChat" };
-  } 
-  if (url.includes("perplexity.ai")) {
-    const match = url.match(/\/search\/([^/?]+)/);
-    return { bot: "perplexity", networkID: match?.[1] };
-  }
-  return { bot: null, networkID: null };
-};
+	// Improved version
+	const getBotInfo = (url) => {
+		if (url.includes("claude.ai")) {
+			const match = url.match(/\/chat\/([^/?]+)/);
+			return { bot: "claude", networkID: match?.[1] };
+		}
+		if (url.includes("chatgpt.com")) {
+			const match = url.match(/\/c\/([^/?]+)/);
+			return { bot: "chatgpt", networkID: match?.[1] };
+		}
+		if (url.includes("you.com")) {
+			return { bot: "you", networkID: "streamingSavedChat" };
+		}
+		if (url.includes("perplexity.ai")) {
+			const match = url.match(/\/search\/([^/?]+)/);
+			return { bot: "perplexity", networkID: match?.[1] };
+		}
+		return { bot: null, networkID: null };
+	};
 
-const { bot, networkID } = getBotInfo(fullUrl);
-if (!bot) {
-  console.log("Unrecognized page");
-  document.querySelector('#message').classList.remove('hidden');
-  return;
-}
+	const { bot, networkID } = getBotInfo(fullUrl);
+	if (!bot) {
+		console.log("Unrecognized page");
+		document.querySelector('#message').classList.remove('hidden');
+		return;
+	}
 
 	document.querySelector('.spinner').classList.remove('hidden');
 	document.querySelector('#message').classList.add('hidden');
@@ -66,7 +70,7 @@ if (!bot) {
 			}
 		} else if (bot === "claude" && request.request.url.includes(networkID)) {
 			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
-			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))){return};
+			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
 
 			const response = await new Promise((resolve) => request.getContent(resolve));
 			const data = JSON.parse(response);
@@ -84,9 +88,44 @@ if (!bot) {
 			document.querySelector('.spinner').classList.add('hidden');
 			document.querySelector('.hideable').classList.remove('hidden');
 			chrome.devtools.network.onRequestFinished.removeListener(listener);
+
+		} else if (bot === "chatgpt" && request.request.url.includes(networkID)) {
+			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
+			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
+
+			const response = await new Promise((resolve) => request.getContent(resolve));
+			const data = JSON.parse(response);
+			let msg = [];
+			let myobj = data.mapping
+			let keys = Object.keys(myobj);
+			msg.push(myobj[keys[0]]);
+			while (msg.at(0).parent)
+				msg.unshift(myobj[msg[0].parent]);
+			while (msg.at(-1).children && msg.at(-1).children.length > 0)
+				msg.push(myobj[msg.at(-1).children[0]]);
+			msg = msg.map(item => item.message);
+			console.log(msg);
+			msg = msg.filter(item=> (item && item.author && ['user','assistant'].includes(item.author.role)));
+			// Process claude.ai content here
+			const titleRaw = data.title;
+			const unixTimestamp = msg.at(-1).create_time;
+			const timestampInMs = unixTimestamp * 1000;
+			const date = new Date(timestampInMs);
+			const created = date.toISOString().slice(0, 10);
+			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
+
+			const markdown = createMarkdownChatgpt(msg);
+			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
+			filenameInput.value = slug + ".md";
+
+			// prepare download button ready
+			document.getElementById('downloadBtn').addEventListener('click', downFunction);
+			document.querySelector('.spinner').classList.add('hidden');
+			document.querySelector('.hideable').classList.remove('hidden');
+			chrome.devtools.network.onRequestFinished.removeListener(listener);
 		} else if (bot === "perplexity" && request.request.url.includes(networkID)) {
 			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
-			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))){return};
+			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
 
 			const response = await new Promise((resolve) => request.getContent(resolve));
 			const data = JSON.parse(response);
@@ -106,7 +145,7 @@ if (!bot) {
 			document.querySelector('.spinner').classList.add('hidden');
 			document.querySelector('.hideable').classList.remove('hidden');
 			chrome.devtools.network.onRequestFinished.removeListener(listener);
-	}
+		}
 	}
 	chrome.devtools.network.onRequestFinished.addListener(listener);
 	chrome.tabs.reload(tab.id);
@@ -150,7 +189,7 @@ function createFrontMatter(titleRaw, created_at = '') {
 			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
 	const condensedTitle = rinseTitle.toLowerCase().trim().replace(/ /g, "_");
-	const slug = `prmt-${condensedTitle}-${created_at? created_at.replace(/[^0-9]/g,"") : shortDate}`;
+	const slug = `prmt-${condensedTitle}-${created_at ? created_at.replace(/[^0-9]/g, "") : shortDate}`;
 	const frontmatter = `---
 title: "${rinseTitle}"
 author: 
@@ -172,6 +211,7 @@ Link: [${hostUrl}](${fullUrl})
 
 	return { frontmatter, slug };
 }
+
 function createMarkdownClaude(chat_messages) {
 	return chat_messages.map(chat => {
 		if (chat.sender === 'human') {
@@ -187,10 +227,27 @@ ${chat.text}
 
 ${text}
 
-\n***\n
 `;
 		}
-	}).join("");
+	}).join("\n***\n");
+}
+
+function createMarkdownChatgpt(chat_messages) {
+	return chat_messages.map(chat => {
+		if (chat.author.role === 'user') {
+			return `
+**PROMPT** >>>>>>
+
+${chat.content.parts[0]}
+
+`
+		} else {
+			return `**BOT** > ${chat.metadata.model_slug || ''} >>>>>>
+
+${chat.content.parts[0]}
+`;
+		}
+	}).join("\n***\n");
 }
 
 const inputPrefix = "\n\n**PROMPT** >>>>>>\n\n";
