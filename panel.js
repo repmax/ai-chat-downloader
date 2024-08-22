@@ -42,59 +42,76 @@ genButton.addEventListener('click', async () => {
 	document.querySelector('.spinner').classList.remove('hidden');
 	document.querySelector('#message').classList.add('hidden');
 
+	const getRequestData = async (request) => {
+		const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
+		if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
+		const response = await new Promise((resolve) => request.getContent(resolve));
+		return JSON.parse(response);
+	}
+
+	const donePreview = (listener) => {
+		document.getElementById('downloadBtn').addEventListener('click', downFunction);
+		document.querySelector('.spinner').classList.add('hidden');
+		document.querySelector('.hideable').classList.remove('hidden');
+		chrome.devtools.network.onRequestFinished.removeListener(listener);
+	};
+
 	const listener = async (request) => {
-		if (bot === "you" && request.request.url.includes(networkID)) {
+		if (!request.request.url.includes(networkID)) { return };
+		if (bot === "you") {
 			// Process you.com content here
 			const content = await new Promise((resolve) => request.getContent(resolve));
 			const chatEvent = content.split('\n\n').find(event => event.startsWith('event: youChatCachedChat'));
+
 			if (!chatEvent) return;
-
-			try {
-				const dataString = chatEvent.split('\n')[1].substring(5);
-
-				const data = JSON.parse(dataString);
-				const titleRaw = data.chat[0].question;
-				const { frontmatter, slug } = createFrontMatter(titleRaw);
-				const markdown = createMarkdownYou(data);
-				markdownTextarea.value = frontmatter + "\n***\n" + markdown;
-				filenameInput.value = slug + ".md";
-
-				// prepare download button ready
-				document.getElementById('downloadBtn').addEventListener('click', downFunction);
-
-				document.querySelector('.spinner').classList.add('hidden');
-				document.querySelector('.hideable').classList.remove('hidden');
-				chrome.devtools.network.onRequestFinished.removeListener(listener);
-			} catch (error) {
-				console.error('Error processing chat data:', error);
-			}
-		} else if (bot === "claude" && request.request.url.includes(networkID)) {
-			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
-			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
-
-			const response = await new Promise((resolve) => request.getContent(resolve));
-			const data = JSON.parse(response);
+			const dataString = chatEvent.split('\n')[1].substring(5);
+			const data = JSON.parse(dataString);
+			const titleRaw = data.chat[0].question;
+			const { frontmatter, slug } = createFrontMatter(titleRaw);
+			let youStandard = data.chat.flatMap(chat => [
+				{
+					author: 'human',
+					text: chat.question
+				},
+				{
+					author: 'bot',
+					text: chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]"),
+					botName: chat.ai_model || chat.chat_mode || '',
+					sources: chat.serp_results?.map(serp => ({
+						name: serp.name,
+						url: serp.url
+					})) || []
+				}
+			]);
+			const markdown = createMarkdown(youStandard);
+			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
+			filenameInput.value = slug + ".md";
+			donePreview(listener);
+		} else if (bot === "claude") {
+			// CLAUDE
+			const data = await getRequestData(request);
 			// Process claude.ai content here
 			const titleRaw = data.name;
 			const created = data.created_at.slice(0, 10);
 			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
 
-			const markdown = createMarkdownClaude(data.chat_messages);
+			let claudeStandard = data.chat_messages.map(chat => ({
+				author: chat.sender === 'human' ? 'human' : 'bot',
+				text: chat.text,
+			}));
+			const markdown = createMarkdown(claudeStandard);
 			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
 			filenameInput.value = slug + ".md";
-
-			// prepare download button ready
-			document.getElementById('downloadBtn').addEventListener('click', downFunction);
-			document.querySelector('.spinner').classList.add('hidden');
-			document.querySelector('.hideable').classList.remove('hidden');
-			chrome.devtools.network.onRequestFinished.removeListener(listener);
-
-		} else if (bot === "chatgpt" && request.request.url.includes(networkID)) {
-			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
-			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
-
-			const response = await new Promise((resolve) => request.getContent(resolve));
-			const data = JSON.parse(response);
+			donePreview(listener);
+		} else if (bot === "chatgpt") {
+			// CHATGPT
+			const data = await getRequestData(request);
+			const titleRaw = data.title;
+			const unixTimestamp = data.create_time;
+			const timestampInMs = unixTimestamp * 1000;
+			const date = new Date(timestampInMs);
+			const created = date.toISOString().slice(0, 10);
+			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
 			let msg = [];
 			let myobj = data.mapping
 			let keys = Object.keys(myobj);
@@ -103,48 +120,65 @@ genButton.addEventListener('click', async () => {
 				msg.unshift(myobj[msg[0].parent]);
 			while (msg.at(-1).children && msg.at(-1).children.length > 0)
 				msg.push(myobj[msg.at(-1).children[0]]);
-			msg = msg.map(item => item.message);
-			console.log(msg);
-			msg = msg.filter(item=> (item && item.author && ['user','assistant'].includes(item.author.role)));
-			// Process claude.ai content here
-			const titleRaw = data.title;
-			const unixTimestamp = msg.at(-1).create_time;
-			const timestampInMs = unixTimestamp * 1000;
-			const date = new Date(timestampInMs);
-			const created = date.toISOString().slice(0, 10);
-			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
-
-			const markdown = createMarkdownChatgpt(msg);
+			msg = msg
+				.map(item => item.message)
+				.filter(item => (item && item.author && ['user', 'assistant'].includes(item.author.role)))
+				.map(chat => ({
+					author: chat.author.role === 'user' ? 'human' : 'bot',
+					text: chat.content.parts[0],
+					botName: chat.metadata?.model_slug || ''
+				}));
+			const markdown = createMarkdown(msg);
 			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
 			filenameInput.value = slug + ".md";
+			donePreview(listener);
+		} else if (bot === "perplexity") {
+			// PERPLEXITY
+			//
+			const content = await new Promise((resolve) => request.getContent(resolve));
+			const pattern = /<script>([\s\S]*?)<\/script>/gi;
+			const temp = [...content.matchAll(pattern)]
+				.map(match => match[1].trim())
+				.filter(event => event.startsWith('self.__next_f.push([1,\"[{\\\"step_type\\\": \\\"INITIAL_QUERY\\\",'))
+				.map(line => (line.match(/".*"/s)[0] || null))
+				.filter(string => string !== null)
+			const entries = temp.map(string => JSON.parse(JSON.parse(string)));
 
-			// prepare download button ready
-			document.getElementById('downloadBtn').addEventListener('click', downFunction);
-			document.querySelector('.spinner').classList.add('hidden');
-			document.querySelector('.hideable').classList.remove('hidden');
-			chrome.devtools.network.onRequestFinished.removeListener(listener);
-		} else if (bot === "perplexity" && request.request.url.includes(networkID)) {
-			const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
-			if (!(contentTypeHeader && contentTypeHeader.value.includes('application/json'))) { return };
+			const titleRaw = entries[0][0].content.query;
+			//const created = new Date(entries[0].updated_datetime).toISOString().slice(0, 10);
+			const { frontmatter, slug } = createFrontMatter(titleRaw);
 
-			const response = await new Promise((resolve) => request.getContent(resolve));
-			const data = JSON.parse(response);
+			let perplexStandard = entries.map(entry => {
+				if (!Array.isArray(entry)) { return };
+				let standardEntry = {
+					author: 'bot',
+					text: ''
+				};
+				let stepObj = Object.fromEntries(entry.map(item => [item.step_type, item]));
+				const answerObj = JSON.parse(stepObj.FINAL?.content?.answer ?? '{}');
+				standardEntry.text = answerObj.answer || '';
+				if (stepObj.SEARCH_RESULTS) {
+					standardEntry.sources = stepObj.SEARCH_RESULTS.content.web_results.map(val => ({
+						name: val.name,
+						url: val.url
+					}));
+				}
+				if (stepObj.SEARCH_WEB) {
+					standardEntry.related = stepObj.SEARCH_WEB.content.queries.map(val => ({
+						name: val.name,
+						url: `https://www.google.com/search?q=${encodeURI(val.url)}`
+					}));
+				}
+				return [
+					{ author: 'human', text: entry[0].content.query },
+					standardEntry
+				];
+			}).flat();
 
-			// Process perplexity.ai content here
-			const entries = data.entries;
-			const titleRaw = entries[0].query_str;
-			const created = new Date(entries[0].updated_datetime).toISOString().slice(0, 10);
-			const { frontmatter, slug } = createFrontMatter(titleRaw, created);
-
-			const markdown = createMarkdownPerplexity(entries);
-			markdownTextarea.value = frontmatter + "\n***\n" + markdown;
+			const markdown = createMarkdown(perplexStandard);
+			markdownTextarea.value = frontmatter + "\n" + markdown;
 			filenameInput.value = slug + ".md";
-
-			// Prepare download button
-			document.getElementById('downloadBtn').addEventListener('click', downFunction);
-			document.querySelector('.spinner').classList.add('hidden');
-			document.querySelector('.hideable').classList.remove('hidden');
-			chrome.devtools.network.onRequestFinished.removeListener(listener);
+			donePreview(listener);
 		}
 	}
 	chrome.devtools.network.onRequestFinished.addListener(listener);
@@ -212,100 +246,24 @@ Link: [${hostUrl}](${fullUrl})
 	return { frontmatter, slug };
 }
 
-function createMarkdownClaude(chat_messages) {
-	return chat_messages.map(chat => {
-		if (chat.sender === 'human') {
-			return `
-**PROMPT** >>>>>>
+function createMarkdown(standardData) {
+	return standardData.map(section => {
+		let markdown = '';
 
-${chat.text}
-
-`
+		if (section.author === 'human') {
+			markdown += `***\n\n**PROMPT** >>>>>>\n\n${section.text}\n`;
 		} else {
-			let text = chat.text.replace(/<antArtifact[^>]*>/, '```').replace(/<\/antArtifact>/, '```');
-			return `**BOT** >>>>>>
-
-${text}
-
-`;
-		}
-	}).join("\n***\n");
-}
-
-function createMarkdownChatgpt(chat_messages) {
-	return chat_messages.map(chat => {
-		if (chat.author.role === 'user') {
-			return `
-**PROMPT** >>>>>>
-
-${chat.content.parts[0]}
-
-`
-		} else {
-			return `**BOT** > ${chat.metadata.model_slug || ''} >>>>>>
-
-${chat.content.parts[0]}
-`;
-		}
-	}).join("\n***\n");
-}
-
-const inputPrefix = "\n\n**PROMPT** >>>>>>\n\n";
-const outputPrefix = "\n\n**BOT** >>>>>>\n\n";
-
-
-function createMarkdownPerplexity(data) {
-	return data.map((val) => {
-		let chat = "";
-		chat += inputPrefix + val.query_str;
-		chat += outputPrefix;
-		let source = "";
-		let textJson = JSON.parse(val.text);
-		if (Array.isArray(textJson)) {
-			let stepObj = Object.fromEntries(textJson.map(item => [item.step_type, item]));
-			const answerObj = JSON.parse(stepObj.FINAL?.content?.answer ?? '{}');
-			chat += answerObj.answer ? `${answerObj.answer}\n\n` : '';
-			chat += answerObj.image_metadata?.map(val => `[![${val.name}](${val.thumbnail})](${val.image})`)?.join("\n") ?? '';
-			if ("SEARCH_RESULTS" in stepObj && stepObj.SEARCH_RESULTS.content.web_results.length) {
-				source += stepObj.SEARCH_RESULTS.content.web_results.map((val) => { return `1. [${val.name}](${val.url})` }).join("\n");
+			markdown += `\n**BOT**${section.botName ? ` > ${section.botName}` : ''} >>>>>>\n\n${section.text}\n`;
+			if (section.sources && section.sources.length > 0) {
+				markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
 			}
-		} else {
-			chat += textJson.answer + "\n\n";
-			if ("web_results" in textJson && textJson.web_results.length) {
-				source += textJson.web_results.map((val) => { return `1. [${val.name}](${val.url})` }).join("\n");
+			if (section.related && section.related.length > 0) {
+				markdown += '\n**RELATED** >>>>>>\n\n' + section.related.map(query => `> [${query.name}](${query.url})`).join('\n\n') + '\n';
 			}
 		}
-		if (source) {
-			chat += "**SOURCES** >>>>>>\n\n" + source + "\n\n";
-		}
-		if ("related_queries" in val && val.related_queries.length) {
-			chat += "**RELATED** >>>>>>\n\n" + val.related_queries.map((val) => { return `> [${val}](https://www.google.com/search?q=${encodeURI(val)})` }).join("\n\n");
-		}
-		return chat;
-	}).join("\n***\n");
-}
 
-
-function createMarkdownYou(data) {
-	return data.chat.map(chat => {
-		// yousearch uses [[number]] as reference link. 
-		let item = `
-**PROMPT** >>>>>>
-
-${chat.question}
-
-**BOT** > ${chat.ai_model || chat.chat_mode} >>>>>>
-
-${chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]")}
-`;
-		if (chat.serp_results && chat.serp_results.length > 0) {
-			item += `
-SOURCES:
-${chat.serp_results.map((serp => `- [${serp.name}](${serp.url})`)).join("\n")}
-`;
-		}
-		return item;
-	}).join("\n***\n");
+		return markdown;
+	}).join('\n\n');
 }
 
 document.querySelector('.info-icon').addEventListener('click', function () {
