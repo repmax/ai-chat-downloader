@@ -1,21 +1,28 @@
-# You.com Chat Downloader
+# AI Chat Downloader
+
+A browser extension for downloading entire AI chat sessions in markdown format.
 
 ## Overview
+AI Chat Downloader allows you to capture full conversations from:
 
-You.com Chat Downloader is a powerful devtool browser extension designed to capture entire chat data from YouSearch servers and convert it into markdown format. This extension provides a convenient way to download full chat sessions, complete with editable frontmatter, directly from You.com.
+Here are the items converted into markdown links:
+
+- [**claude.ai**](https://claude.ai)
+- [**perplexity.ai**](https://perplexity.ai)
+- [**chatgpt.com**](https://chat.openai.com)
+- [**you.com**](https://you.com)
+
+The browser extension automatically generates a frontmatter, chat and filename, and includes links to sources when available. It will first display a preview of the AI chat in markdown format, so you can edit the frontmatter, chat or filename before downloading.
+
+The problem is that current AI chatbot services offer only to copy a single response at a time, making it cumbersome to save and share full AI chats. This browser extension is also ideal for users who use knowledge management systems like Obesidian or Notion, or whoever want to share or compare AI chat responses. 
+
+The markdown is taken directly from the AI Chats servers - without using any tools for webscraping or conversion - which assure the highest quality output possible. 
 
 ## Features
 
-- **Full Chat Capture**: Download the entire chat session in markdown format directly from the You.com server, bypassing the need to convert HTML to markdown.
-- **Editable Frontmatter**: Automatically generated frontmatter includes tags, date, title, and other properties that can be edited before download.
+- **Full AI Chat Capture**: Download the entire chat session in markdown format, bypassing the need for scraping or converting HTML to markdown.
+- **Editable Preview**: Automatically generated frontmatter includes title, date and chat which all can be edited before download.
 - **Custom Filename**: The filename for the markdown file is displayed and can be modified before downloading.
-
-## Benefits
-
-This extension is particularly beneficial for users utilizing advanced knowledge management systems like Obsidian for note organization and retrieval. It enables archiving of longer conversations and comparison of responses from different large language models.
-
-The main view:
-![](screenshots/youcom-chat-downloader_01.jpg)
 
 ## Installation
 
@@ -28,20 +35,21 @@ The main view:
 
 ## Usage
 
+The main view:
+![](screenshots/ai-chat-downloader_01.jpg)
+
 Assuming you have a chat session open in the current tab in your browser:
 
 1. Open DevTools, either by right-clicking and choosing `inspect` or pressing `F12`.
-2. Activate the DevTools "You.com Chat Downloader" panel in the top row. It may be the last in item in the list of tabs starting with "Elements". 
-3. Click the "Generate" button in the panel. This will trigger a reload of the page.
+2. Activate the DevTools tab "AI Chat Downloader" panels in the top row. It may be the last in item in the list of tabs starting with "Elements". 
+3. Click the "Preview" button in the panel. This will trigger a reload of the page.
 4. Review and edit the markdown content and frontmatter.
 5. Modify the filename if desired.
 6. Press the "Download" button to download the markdown file.
 
 Markdown ready to be edited and downloaded:
-![](screenshots/youcom-chat-downloader_02.jpg)
+![](screenshots/ai-chat-downloader_02.jpg)
 
-The information modal:
-![](screenshots/youcom-chat-downloader_03.jpg)
 
 ## Contributing
 

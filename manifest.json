@@ -1,12 +1,12 @@
 {
   "name": "AI Chat Downloader",
-  "description": "Download ai chat as markdown file",
+  "description": "Download AI chat conversations as a markdown file",
   "version": "1.0",  "icons": {
-    "36": "you_36.png",
-    "144": "you_144.png"
+    "36": "chat_36.png",
+    "144": "chat_144.png"
   },
 	"action": {
-    "default_title": "Chat Downloader"
+    "default_title": "AI Chat Downloader"
   },
   "manifest_version": 3,
   "permissions": ["webRequest","activeTab","tabs","scripting"],
