@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Chat Downloader</title>
+	<title>AI Chat Downloader</title>
 	<style>
 		body,
 		html {
@@ -18,6 +18,23 @@
 			background-color: #fff;
 		}
 
+		.header-container {
+			background-color: darkgrey;
+			display: flex;
+			max-width: 500px;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 5px;
+			padding: 0px 5px;
+			border-radius: 5px;
+		}
+		
+
+		h1 {
+			margin-left: 5px;
+			font-size: 16px;
+		}
+
 		.container {
 			display: flex;
 			flex-direction: column;
@@ -25,19 +42,14 @@
 			width: 100%;
 			max-width: 500px;
 			margin: 0;
-			padding: 20px;
+			padding: 8px;
 			box-sizing: border-box;
 		}
 
-		.title {
-			font-size: 20px;
-			margin-bottom: 10px;
-		}
 
 		.button {
-			width: 150px;
-			padding: 10px;
-			margin-top: 10px;
+			width: 130px;
+			padding: 5px;
 			border: none;
 			border-radius: 5px;
 			background-color: #007bff;
@@ -79,15 +91,15 @@
 		}
 
 		label {
-			margin-top: 10px;
+			margin-top: 2px;
 			font-weight: bold;
 		}
 
 		.info-icon {
-			position: absolute;
-			top: 20px;
-			right: 20px;
-			cursor: pointer;
+			/* position: absolute; */
+			/* top: 20px; */
+			/* right: 20px; */
+			/* cursor: pointer; */
 		}
 
 		.modal {
@@ -136,7 +148,8 @@
 			display: none !important;
 		}
 
-		.spinner.hidden, #message.hidden {
+		.spinner.hidden,
+		#message.hidden {
 			display: none !important;
 		}
 
@@ -164,14 +177,16 @@
 
 <body>
 	<div class="container">
-		<div class="title">Claude.ai, Chatgpt.com, Perplexity.ai and You.com Chat Downloader</div>
 		<p id="message" class="hidden">Not available on this webpage.</p>
-		<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-			<circle cx="12" cy="12" r="10" fill="#007bff" />
-			<rect x="11" y="7" width="2" height="2" fill="white" />
-			<rect x="11" y="10" width="2" height="7" fill="white" />
-		</svg>
-		<button id="generateBtn" class="button">Generate</button>
+		<div class="header-container">
+			<button id="previewBtn" class="button">Preview</button>
+			<h1>AI Chat Downloader</h1>
+			<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+				<circle cx="12" cy="12" r="10" fill="#007bff" />
+				<rect x="11" y="7" width="2" height="2" fill="white" />
+				<rect x="11" y="10" width="2" height="7" fill="white" />
+			</svg>
+		</div>
 		<div class="spinner hidden"></div>
 		<div class="hideable hidden">
 			<label for="markdown">Markdown</label>
@@ -192,22 +207,30 @@
 					</svg>
 				</button>
 				<div>
-					<h2>Welcome to Chat Downloader!</h2>
+					<h2>AI Chat Downloader</h2>
 					<p>
-						This browser extension allows you to capture and download entire chat sessions from **perplexity.ai**, **you.com** and **claude.ai** in markdown
-						format. AI chat bot services offer only to grab a single response at a time, this tool grabs the full chat
-						directly from the providers servers.
+						This browser extension makes it possible to capture and download entire chat sessions from
+						<b>perplexity.ai</b>, <b>chatgpt.com</b>, <b>you.com</b> and <b>claude.ai</b> in markdown
+						format.
+					</p>
+					<p>
+						AI chat bot services offer only to grab a single response at a time, this tool grabs the full chat in
+						markdown format
+						directly from providers servers.
 					</p>
 					<h2>Key Features:</h2>
 					<ul>
-						<li>Retrieve full chat sessions in markdown format, including frontmatter.</li>
-						<li>Customize tags, date, title, or any other properties before downloading.</li>
+						<li>Retrieve full chat sessions in markdown format.
+						<li>Automatically generated frontmatter.</li>
+						<li>Preview so you can edit tags, date, title, markdown before downloading as a file.</li>
 						<li>Modify the filename to your preference.</li>
 					</ul>
 					<h2>Usage Instructions:</h2>
 					<ol>
-						<li>Ensure your current tab is a chat session on perplexity.ai, you.com or claude.ai.</li>
-						<li>Click the "Generate" button. A reload of the page will be triggered to fetch the latest chat data.</li>
+						<li>Ensure your current tab is a AI chat session on one of the accepted chat services.</li>
+						<li>Open devtools. F12 or right click webpage and choose "inspect".</li>
+						<li>Select "AI Chat Downloader" tab inside devtools</li>
+						<li>Click the "Preview" button. A reload of the page will be triggered to fetch the latest chat data.</li>
 						<li>Edit the markdown content and frontmatter as needed.</li>
 						<li>Change the filename if desired.</li>
 						<li>Click "Download" to save the markdown file.</li>
@@ -216,7 +239,7 @@
 						This extension is ideal for users leveraging advanced knowledge management systems like Obsidian. Archive
 						longer conversations and compare responses from different language models with ease.
 					</p>
-					<p>Enjoy using Chat Downloader!</p>
+					<p>Enjoy using AI Chat Downloader!</p>
 				</div>
 			</div>
 		</div>
