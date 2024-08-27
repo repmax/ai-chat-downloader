@@ -143,7 +143,7 @@ const processors = {
 		let messages = [];
 		let mapping = data.mapping;
 		let keys = Object.keys(mapping);
-		messages.push(mapping[keys[0]]);
+		messages.push(mapping[keys.at(-1)]);
 		while (messages.at(0).parent)
 			messages.unshift(mapping[messages[0].parent]);
 		while (messages.at(-1).children && messages.at(-1).children.length > 0)
