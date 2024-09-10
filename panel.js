@@ -53,6 +53,7 @@ function getBotInfo(url) {
 		'claude.ai': { bot: 'claude', pattern: /\/chat\/([^/?]+)/, contentType: 'application/json' },
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
 		'you.com': { bot: 'you', networkID: 'streamingSavedChat' },
+		'google.com': { bot: 'google', networkID: 'GetPrompt', contentType: 'application/json'},
 		'perplexity.ai': { bot: 'perplexity', pattern: /\/search\/([^/?]+)/ }
 	};
 
@@ -135,6 +136,15 @@ const processors = {
 		}));
 		return {title,dialogue,created};
 	},
+	google: async (response) => {
+		const data = JSON.parse(response);
+		const title = data[4][0].trim();
+		const dialogue = data.at(-1)[0].map(chat => ({
+			author: chat.at(-1) === 'user' ? 'human' : 'bot',
+			text: chat[0],
+		}));
+		return {title,dialogue};
+	},
 	chatgpt: async (response) => {
 		const data = JSON.parse(response);
 		const title = data.title;
@@ -143,14 +153,14 @@ const processors = {
 		let messages = [];
 		let mapping = data.mapping;
 		let keys = Object.keys(mapping);
-		messages.push(mapping[keys.at(-1)]);
+		messages.push(mapping[keys.at(-1)]); // start from last because messages are sorted by timestamp.
 		while (messages.at(0).parent)
 			messages.unshift(mapping[messages[0].parent]);
 		while (messages.at(-1).children && messages.at(-1).children.length > 0)
 			messages.push(mapping[messages.at(-1).children[0]]);
 		const dialogue = messages
 			.map(item => item.message)
-			.filter(item => item && item.author && ['user', 'assistant'].includes(item.author.role))
+			.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
 			.map(chat => ({
 				author: chat.author.role === 'user' ? 'human' : 'bot',
 				text: chat.content.parts[0],
