@@ -77,21 +77,6 @@ function showLoadingState() {
 	document.querySelector('.hideable').classList.add('hidden');
 }
 
-function createNetworkListener({ bot, networkID, contentType }) {
-	return async (request) => {
-		if (!isRelevantRequest(request, networkID, contentType)) return;
-
-		chrome.devtools.network.onRequestFinished.removeListener(listener);
-		const response = await getRequestContent(request);
-
-		const botHandler = botHandlers[bot];
-		if (!botHandler) return;
-
-		const dialogueData = await botHandler(response);
-		updateUI(dialogueData);
-	};
-}
-
 function isRelevantRequest(request, { networkID, contentType = null }) {
 	if (!request.request.url.includes(networkID)) return false;
 	if (contentType) {
@@ -99,10 +84,6 @@ function isRelevantRequest(request, { networkID, contentType = null }) {
 		return contentTypeHeader?.value.includes(contentType);
 	}
 	return true;
-}
-
-async function getRequestContent(request) {
-	return new Promise((resolve) => request.getContent(resolve));
 }
 
 const processors = {
@@ -113,7 +94,7 @@ const processors = {
 		const data = JSON.parse(dataString);
 		title = data.chat[0].question;
 		dialogue = data.chat.flatMap(chat => [
-			{ author: 'human', text: chat.question },
+			{ author: 'prompt', text: chat.question },
 			{
 				author: 'bot',
 				text: chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]"),
@@ -131,7 +112,7 @@ const processors = {
 		const title = data.name;
 		const created = data.created_at.slice(0, 10);
 		const dialogue = data.chat_messages.map(chat => ({
-			author: chat.sender === 'human' ? 'human' : 'bot',
+			author: chat.sender === 'human' ? 'prompt' : 'bot',
 			text: chat.text,
 		}));
 		return {title,dialogue,created};
@@ -140,7 +121,7 @@ const processors = {
 		const data = JSON.parse(response);
 		const title = data[4][0].trim();
 		const dialogue = data.at(-1)[0].map(chat => ({
-			author: chat.some(item => item === 'user') ? 'human' : 'bot',
+			author: chat.some(item => item === 'user') ? 'prompt' : 'bot',
 			text: chat[0],
 		}));
 		return {title,dialogue};
@@ -162,7 +143,7 @@ const processors = {
 			.map(item => item.message)
 			.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
 			.map(chat => ({
-				author: chat.author.role === 'user' ? 'human' : 'bot',
+				author: chat.author.role === 'user' ? 'prompt' : 'bot',
 				text: chat.content.parts[0],
 				botName: chat.metadata?.model_slug || ''
 			}));
@@ -207,7 +188,7 @@ const processors = {
 			}
 
 			return [
-				{ author: 'human', text: entry[0].content.query },
+				{ author: 'prompt', text: entry[0].content.query },
 				standardEntry
 			];
 		}).flat();
@@ -290,7 +271,7 @@ Link: [${hostUrl}](${fullUrl})
 function createMarkdown(standardData) {
 	return standardData.map(section => {
 		let markdown = '';
-		if (section.author === 'human') {
+		if (section.author === 'prompt') {
 			markdown += `***\n\n**PROMPT** >>>>>>\n\n${section.text}\n`;
 		} else {
 			markdown += `\n**BOT**${section.botName ? ` > ${section.botName}` : ''} >>>>>>\n\n${section.text}\n`;
