@@ -140,7 +140,7 @@ const processors = {
 		const data = JSON.parse(response);
 		const title = data[4][0].trim();
 		const dialogue = data.at(-1)[0].map(chat => ({
-			author: chat.at(-1) === 'user' ? 'human' : 'bot',
+			author: chat.some(item => item === 'user') ? 'human' : 'bot',
 			text: chat[0],
 		}));
 		return {title,dialogue};
