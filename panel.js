@@ -79,6 +79,7 @@ function showLoadingState() {
 
 function isRelevantRequest(request, { networkID, contentType = null }) {
 	if (!request.request.url.includes(networkID)) return false;
+	if (request.request.method !== "GET") return false;
 	if (contentType) {
 		const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
 		return contentTypeHeader?.value.includes(contentType);
@@ -113,7 +114,7 @@ const processors = {
 		const created = data.created_at.slice(0, 10);
 		const dialogue = data.chat_messages.map(chat => ({
 			author: chat.sender === 'human' ? 'prompt' : 'bot',
-			text: chat.text,
+			text: chat.content[0].text,
 		}));
 		return {title,dialogue,created};
 	},
@@ -150,9 +151,8 @@ const processors = {
 		return {title,dialogue,created};
 	},
 	perplexity: async (response) => {
-		const pattern = /<script>([\s\S]*?)<\/script>/gi;
+		const pattern = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 		const matchedScripts = [...response.matchAll(pattern)];
-
 		const scriptContents = matchedScripts
 			.map(match => match[1].trim())
 			.filter(script => script.startsWith('self.__next_f.push([1,"[{\\\"step_type\\\": \\\"INITIAL_QUERY\\\",'))
@@ -182,8 +182,8 @@ const processors = {
 
 			if (stepObj.SEARCH_WEB) {
 				standardEntry.related = stepObj.SEARCH_WEB.content.queries.map(val => ({
-					name: val.name,
-					url: `https://www.google.com/search?q=${encodeURI(val.url)}`
+					name: val.query,
+					url: `https://www.google.com/search?q=${encodeURI(val.query)}`
 				}));
 			}
 
