@@ -1,9 +1,10 @@
 {
-  "name": "AI Chat Downloader",
-  "description": "Download AI chat conversations as a markdown file",
-  "version": "1.0",  "icons": {
-    "36": "chat_36.png",
-    "144": "chat_144.png"
+  "name": "AI Chat Network Response Downloader",
+  "description": "Download AI chat conversations as a markdown file directly from the network response",
+  "version": "1.0",
+  "icons": {
+    "16": "aichat_dark_16.png",
+    "32": "aichat_dark_32.png"
   },
 	"action": {
     "default_title": "AI Chat Downloader"

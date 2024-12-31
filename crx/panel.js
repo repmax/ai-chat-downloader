@@ -24,6 +24,7 @@ viewButton.addEventListener('click', async () => {
 	const listener = async (request) => {
 		// Filter requests
 		if (!isRelevantRequest(request, botInfo)) return;
+		console.log("isRelevantRequest", request);
 		// Remove the listener early so other requests do not pass while resolving promises (await)
 		chrome.devtools.network.onRequestFinished.removeListener(listener);
 		const response = await new Promise((resolve) => request.getContent(resolve));
@@ -31,7 +32,7 @@ viewButton.addEventListener('click', async () => {
 		const chatData = await processor(response);
 		updateUI(chatData);
 	};
-
+	console.log("addListener");
 	chrome.devtools.network.onRequestFinished.addListener(listener);
 	chrome.tabs.reload(tab.id);
 });
@@ -52,8 +53,9 @@ function getBotInfo(url) {
 	const botPatterns = {
 		'claude.ai': { bot: 'claude', pattern: /\/chat\/([^/?]+)/, contentType: 'application/json' },
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
-		'you.com': { bot: 'you', networkID: 'streamingSavedChat' },
-		'google.com': { bot: 'google', networkID: 'GetPrompt', contentType: 'application/json'},
+		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol:"GET" },
+		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol:"GET" },
+		'google.com': { bot: 'google', networkID: 'GetPrompt', contentType: 'application/json', protocol:"POST" },
 		'perplexity.ai': { bot: 'perplexity', pattern: /\/search\/([^/?]+)/ }
 	};
 
@@ -77,9 +79,11 @@ function showLoadingState() {
 	document.querySelector('.hideable').classList.add('hidden');
 }
 
-function isRelevantRequest(request, { networkID, contentType = null }) {
+function isRelevantRequest(request, { networkID, contentType = null, protocol = null }) {
 	if (!request.request.url.includes(networkID)) return false;
-	if (request.request.method !== "GET") return false;
+	if (protocol) {
+		if (request.request.method !== protocol) return false;
+	}
 	if (contentType) {
 		const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
 		return contentTypeHeader?.value.includes(contentType);
@@ -88,24 +92,42 @@ function isRelevantRequest(request, { networkID, contentType = null }) {
 }
 
 const processors = {
+	grok: async (response) => {
+		let {data} = JSON.parse(response);
+		const chat_list = data[Object.keys(data)[0]]['items'].reverse();
+		const title = chat_list[0].message;
+		const created = new Date(chat_list[0].created_at_ms).toISOString().slice(0, 10);
+		const dialogue = chat_list.map(chat => ({
+			author: chat.sender_type === 'User' ? 'prompt' : 'bot',
+			text: chat.message,
+			sources: chat.web_results?.map(serp => ({
+				name: serp.title,
+				url: serp.url
+			})) || []
+		}));
+
+		return {title,dialogue,created};
+	},
 	you: async (response) => {
 		const chatEvent = response.split('\n\n').find(event => event.startsWith('event: youChatCachedChat'));
 		if (!chatEvent) return;
 		const dataString = chatEvent.split('\n')[1].substring(5);
 		const data = JSON.parse(dataString);
 		title = data.chat[0].question;
-		dialogue = data.chat.flatMap(chat => [
-			{ author: 'prompt', text: chat.question },
-			{
-				author: 'bot',
-				text: chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]"),
-				botName: chat.ai_model || chat.chat_mode || '',
-				sources: chat.serp_results?.map(serp => ({
-					name: serp.name,
-					url: serp.url
-				})) || []
-			}
-		]);
+		dialogue = data.chat
+			.filter(chat => chat.question && chat.answer)
+			.flatMap(chat => [
+				{ author: 'prompt', text: chat.question },
+				{
+					author: 'bot',
+					text: chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]"),
+					botName: chat.ai_model || chat.chat_mode || '',
+					sources: chat.serp_results?.map(serp => ({
+						name: serp.name,
+						url: serp.url
+					})) || []
+				}
+			]);
 		return {title,dialogue};
 	},
 	claude: async (response) => {
