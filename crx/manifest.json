@@ -11,6 +11,6 @@
   },
   "manifest_version": 3,
   "permissions": ["webRequest","activeTab","tabs","scripting"],
-  "host_permissions": ["https://chatgpt.com/*","https://you.com/*","https://claude.ai/*","https://perplexity.ai/*","https://aistudio.google.com/*"],
+  "host_permissions": ["https://chatgpt.com/*","https://you.com/*","https://claude.ai/*","https://perplexity.ai/*","https://aistudio.google.com/*","https://x.com/*"],
   "devtools_page": "devtools.html"
 }
