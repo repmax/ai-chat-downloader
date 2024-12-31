@@ -5,12 +5,12 @@ A browser extension for downloading entire AI chat sessions in markdown format.
 ## Overview
 AI Chat Downloader allows you to capture full conversations from:
 
-Here are the items converted into markdown links:
-
-- [**claude.ai**](https://claude.ai)
-- [**perplexity.ai**](https://perplexity.ai)
-- [**chatgpt.com**](https://chat.openai.com)
+- [**Anthropic/Claude**](https://claude.ai)
+- [**Google AI Studio](https://aistudio.google.com/)
+- [**Perplexity**](https://perplexity.ai)
+- [**Openai/Chatgpt**](https://chat.openai.com)
 - [**you.com**](https://you.com)
+- [**X/grok**](https://x.com/i/grok)
 
 The browser extension automatically generates a frontmatter, chat and filename, and includes links to sources when available. It will first display a preview of the AI chat in markdown format, so you can edit the frontmatter, chat or filename before downloading.
 
