@@ -5,6 +5,7 @@ A browser extension for downloading entire AI chat sessions in markdown format.
 ## Overview
 AI Chat Downloader allows you to capture full conversations from:
 
+- [**DeepSeek**](https://chat.deepseek.com/)
 - [**Anthropic/Claude**](https://claude.ai)
 - [**Google AI Studio**](https://aistudio.google.com/)
 - [**Perplexity**](https://perplexity.ai)

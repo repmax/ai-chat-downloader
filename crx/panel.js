@@ -1,16 +1,83 @@
 // DOM elements
-const viewButton = document.querySelector('#previewBtn');
+const previewButton = document.querySelector('#previewBtn');
 const markdownTextarea = document.getElementById('markdown');
 const filenameInput = document.getElementById('filename');
 
 let fullUrl, hostUrl;
+				
+function listenWebpageExtract(message, sender, sendResponse) {
+	if (message.type === "chat") {
+		chrome.runtime.onMessage.removeListener(listenWebpageExtract);
+		updateUI(message.result);
+	}
+}
+
+function extractWebpageIndexedDB(chat_id) {
+	// This function runs in the context of the webpage
+	const request = window.indexedDB.open("deepseek-chat");
+	request.onsuccess = (event) => {
+		const db = event.target.result;
+		const transaction = db.transaction("history-message", "readonly");
+		const store = transaction.objectStore("history-message");
+		const getAllRequest = store.getAll();
+		getAllRequest.onsuccess = () => {
+			const result = getAllRequest.result.find(item => item.key === chat_id);
+			const title = result.data.chat_session.title;
+			const createdUnix = result.data.chat_session.updated_at*1000;
+			const created = new Date(createdUnix).toISOString().slice(0, 10);
+			let tree = result.data.chat_messages
+			let path = [tree.pop()];
+			// only show the last conversation thread
+			while (tree.length) {
+				let currentTree = tree.at(-1);
+				if(!currentTree.parent_id){
+					path.unshift(tree.pop());
+					break;
+				}
+				if (path[0].parent_id === currentTree.message_id) {
+					path.unshift(tree.pop());
+				} else {
+					tree.pop();
+				}
+			}
+			const dialogue = path
+				.map(message => ({
+						author: message.role === 'USER' ? 'prompt' : 'bot',
+						text: message.thinking_content ? "[THINKING]\n" + message.thinking_content + "\n[/THINKING]\n" + message.content : message.content,
+						botName: ''
+					}));
+			chrome.runtime.sendMessage({type:"chat", result: {title,dialogue,created}});
+		};
+	};
+}
 
 // Event listener for button click
-viewButton.addEventListener('click', async () => {
-	const tab = await getActiveTab();
+previewButton.addEventListener('click', async () => {
+	const currentWindow = await chrome.windows.getCurrent();
+	const [tab] = await chrome.tabs.query({ active: true, windowId: currentWindow.id });
 	if (!tab) return;
+	fullUrl = tab.url;
+	hostUrl = new URL(fullUrl).host.replace("www.", "");
 
-	({ fullUrl, hostUrl } = await getUrlInfo(tab));
+	if(fullUrl.includes("chat.deepseek.com")){
+		// Deepseek is not sending full chat via network request on every reload, 
+		// but full chat is always stored in webpage indexedDB after a reload.
+		showLoadingState();
+		const chat_id = tab.url.split("/").pop().split("?")[0];
+		chrome.tabs.reload(tab.id);
+		chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+			if (tabId === tab.id && changeInfo.status === "complete") {
+				chrome.tabs.onUpdated.removeListener(listener);
+				chrome.scripting.executeScript({
+					target: { tabId: tab.id },
+					function: extractWebpageIndexedDB,
+					args: [chat_id]
+				});
+			}
+		});
+		chrome.runtime.onMessage.addListener(listenWebpageExtract);
+		return;
+	}
 
 	const botInfo = getBotInfo(fullUrl);
 	if (!botInfo) {
@@ -20,11 +87,9 @@ viewButton.addEventListener('click', async () => {
 
 	showLoadingState();
 
-	// Set up the listener
 	const listener = async (request) => {
 		// Filter requests
 		if (!isRelevantRequest(request, botInfo)) return;
-		console.log("isRelevantRequest", request);
 		// Remove the listener early so other requests do not pass while resolving promises (await)
 		chrome.devtools.network.onRequestFinished.removeListener(listener);
 		const response = await new Promise((resolve) => request.getContent(resolve));
@@ -32,22 +97,9 @@ viewButton.addEventListener('click', async () => {
 		const chatData = await processor(response);
 		updateUI(chatData);
 	};
-	console.log("addListener");
 	chrome.devtools.network.onRequestFinished.addListener(listener);
 	chrome.tabs.reload(tab.id);
 });
-
-async function getActiveTab() {
-	const [tab] = await chrome.tabs.query({ active: true, windowId: (await chrome.windows.getCurrent()).id });
-	return tab?.id ? tab : null;
-}
-
-async function getUrlInfo(tab) {
-	const fullUrl = tab.url;
-	const { host } = new URL(fullUrl);
-	const hostUrl = host.replace("www.", "");
-	return { fullUrl, hostUrl };
-}
 
 function getBotInfo(url) {
 	const botPatterns = {
