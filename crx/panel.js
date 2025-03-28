@@ -42,8 +42,8 @@ function extractWebpageIndexedDB(chat_id) {
 			}
 			const dialogue = path
 				.map(message => ({
-						author: message.role === 'USER' ? 'prompt' : 'bot',
-						text: message.thinking_content ? "[THINKING]\n" + message.thinking_content + "\n[/THINKING]\n" + message.content : message.content,
+						type: message.type === 'USER' ? 'PROMPT' : 'BOT',
+						text: message.thinking_content ? "(NOTES)\n" + message.thinking_content + "\n(/NOTES)\n\n" + message.content : message.content,
 						botName: ''
 					}));
 			chrome.runtime.sendMessage({type:"chat", result: {title,dialogue,created}});
@@ -150,7 +150,7 @@ const processors = {
 		const title = chat_list[0].message;
 		const created = new Date(chat_list[0].created_at_ms).toISOString().slice(0, 10);
 		const dialogue = chat_list.map(chat => ({
-			author: chat.sender_type === 'User' ? 'prompt' : 'bot',
+			type: chat.sender_type === 'User' ? 'PROMPT' : 'BOT',
 			text: chat.message,
 			sources: chat.web_results?.map(serp => ({
 				name: serp.title,
@@ -169,9 +169,9 @@ const processors = {
 		dialogue = data.chat
 			.filter(chat => chat.question && chat.answer)
 			.flatMap(chat => [
-				{ author: 'prompt', text: chat.question },
+				{ type: 'PROMPT', text: chat.question },
 				{
-					author: 'bot',
+					type: 'BOT',
 					text: chat.answer.replace(/\[\[(\d+)\]\]/g, "[$1]"),
 					botName: chat.ai_model || chat.chat_mode || '',
 					sources: chat.serp_results?.map(serp => ({
@@ -187,7 +187,7 @@ const processors = {
 		const title = data.name;
 		const created = data.created_at.slice(0, 10);
 		const dialogue = data.chat_messages.map(chat => ({
-			author: chat.sender === 'human' ? 'prompt' : 'bot',
+			type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
 			text: chat.content[0].text,
 		}));
 		return {title,dialogue,created};
@@ -195,10 +195,22 @@ const processors = {
 	google: async (response) => {
 		const data = JSON.parse(response);
 		const title = data[4][0].trim();
-		const dialogue = data.at(-1)[0].map(chat => ({
-			author: chat.some(item => item === 'user') ? 'prompt' : 'bot',
+		const dialogueRaw = data.at(-1)[0].map(chat => ({
+			type: chat.some(item => item === 'user') ? 'PROMPT' : 'BOT',
 			text: chat[0],
 		}));
+		// if a 'BOT' message is followed by another 'BOT' message, they should be merged.
+		const dialogue =[];
+		for (let i = 0; i < dialogueRaw.length - 1; i++) {
+			if (dialogueRaw[i].type === 'PROMPT') {
+				dialogue.push(dialogueRaw[i]);
+			}else	if (dialogueRaw[i].type === 'BOT' && dialogueRaw[i + 1].type === 'BOT') {
+				dialogue.push({type: dialogueRaw[i].type, text: "(NOTES)\n\n" + dialogueRaw[i].text + "\n\n(/NOTES)\n\n" + dialogueRaw[i + 1].text});
+				i++; // jump the next 'BOT' message
+			}else{
+				dialogue.push(dialogueRaw[i]);
+			}
+		}
 		return {title,dialogue};
 	},
 	chatgpt: async (response) => {
@@ -218,7 +230,7 @@ const processors = {
 			.map(item => item.message)
 			.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
 			.map(chat => ({
-				author: chat.author.role === 'user' ? 'prompt' : 'bot',
+				type: chat.author.role === 'user' ? 'PROMPT' : 'BOT',
 				text: chat.content.parts[0],
 				botName: chat.metadata?.model_slug || ''
 			}));
@@ -239,7 +251,7 @@ const processors = {
 		const dialogue = entries.map(entry => {
 			if (!Array.isArray(entry)) return;
 			const standardEntry = {
-				author: 'bot',
+				type: 'BOT',
 				text: ''
 			};
 
@@ -262,7 +274,7 @@ const processors = {
 			}
 
 			return [
-				{ author: 'prompt', text: entry[0].content.query },
+				{ type: 'PROMPT', text: entry[0].content.query },
 				standardEntry
 			];
 		}).flat();
@@ -343,22 +355,24 @@ Link: [${hostUrl}](${fullUrl})
 
 // Function to generate markdown content
 function createMarkdown(standardData) {
-	return standardData.map(section => {
+	let inquiry = '**Line of Inquiry:**\n\n';
+	let chat = standardData.map(section => {
 		let markdown = '';
-		if (section.author === 'prompt') {
-			markdown += `***\n\n**PROMPT** >>>>>>\n\n${section.text}\n`;
-		} else {
-			markdown += `\n**BOT**${section.botName ? ` > ${section.botName}` : ''} >>>>>>\n\n${section.text}\n`;
-			if (section.sources && section.sources.length > 0) {
-				markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
-			}
-			if (section.related && section.related.length > 0) {
-				markdown += '\n**RELATED** >>>>>>\n\n' + section.related.map(query => `> [${query.name}](${query.url})`).join('\n\n') + '\n';
-			}
+		if (section.type === 'PROMPT') {
+			const allWords = section.text.split(/\s+/);
+			const words = allWords.slice(0, 60).join(' ') + (allWords.length > 60 ? '...' : '');
+			inquiry += `${words}\n\n`;
 		}
-
+		markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
+		if (section.sources && section.sources.length > 0) {
+			markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
+		}
+		if (section.related && section.related.length > 0) {
+			markdown += '\n**RELATED** >>>>>>\n\n' + section.related.map(query => `> [${query.name}](${query.url})`).join('\n\n') + '\n';
+		}
 		return markdown;
 	}).join('\n');
+	return inquiry + chat
 }
 
 // Modal functionality
