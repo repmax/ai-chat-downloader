@@ -195,7 +195,9 @@ const processors = {
 	google: async (response) => {
 		const data = JSON.parse(response);
 		const title = data[4][0].trim();
-		const dialogueRaw = data.at(-1)[0].map(chat => ({
+		const dialogueRaw = data.at(-1)[0]
+		.filter(chat => typeof chat[0] === 'string')
+		.map(chat => ({
 			type: chat.some(item => item === 'user') ? 'PROMPT' : 'BOT',
 			text: chat[0],
 		}));
