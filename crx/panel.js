@@ -107,7 +107,7 @@ function getBotInfo(url) {
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
 		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol:"GET" },
 		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol:"GET" },
-		'google.com': { bot: 'google', networkID: 'GetPrompt', contentType: 'application/json', protocol:"POST" },
+		'google.com': { bot: 'google', networkID: 'ResolveDriveResource', contentType: 'application/json', protocol:"POST" },
 		'perplexity.ai': { bot: 'perplexity', pattern: /\/search\/([^/?]+)/ }
 	};
 
@@ -194,8 +194,8 @@ const processors = {
 	},
 	google: async (response) => {
 		const data = JSON.parse(response);
-		const title = data[4][0].trim();
-		const dialogueRaw = data.at(-1)[0]
+		const title = data[0][4][0].trim();
+		const dialogueRaw = data[0].at(-1)[0]
 		.filter(chat => typeof chat[0] === 'string')
 		.map(chat => ({
 			type: chat.some(item => item === 'user') ? 'PROMPT' : 'BOT',
