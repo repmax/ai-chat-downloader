@@ -146,7 +146,7 @@ function isRelevantRequest(request, { networkID, contentType = null, protocol = 
 const processors = {
 	grok: async (response) => {
 		let {data} = JSON.parse(response);
-		const chat_list = data[Object.keys(data)[0]]['items'].reverse();
+		const chat_list = data['grok_conversation_items_by_rest_id']['items'].reverse();
 		const title = chat_list[0].message;
 		const created = new Date(chat_list[0].created_at_ms).toISOString().slice(0, 10);
 		const dialogue = chat_list.map(chat => ({
