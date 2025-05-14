@@ -136,6 +136,7 @@ function isRelevantRequest(request, { networkID, contentType = null, protocol = 
 	if (protocol) {
 		if (request.request.method !== protocol) return false;
 	}
+	if (request.request.url.includes("claude") && request.request.url.includes("latest")) return false;
 	if (contentType) {
 		const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
 		return contentTypeHeader?.value.includes(contentType);
