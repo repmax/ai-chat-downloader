@@ -358,20 +358,27 @@ Link: [${hostUrl}](${fullUrl})
 
 // Function to generate markdown content
 function createMarkdown(standardData) {
-	let inquiry = '**Line of Inquiry:**\n\n';
+	let unique_id = Math.random().toString(36).substring(2, 6);
+	let inquiry = '## Index\n\n';
+	let index = 0;
 	let chat = standardData.map(section => {
 		let markdown = '';
 		if (section.type === 'PROMPT') {
+			index++;
+			twodigitindex = index.toString().padStart(2, '0');
 			const allWords = section.text.split(/\s+/);
 			const words = allWords.slice(0, 60).join(' ') + (allWords.length > 60 ? '...' : '');
-			inquiry += `${words}\n\n`;
-		}
-		markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
-		if (section.sources && section.sources.length > 0) {
-			markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
-		}
-		if (section.related && section.related.length > 0) {
-			markdown += '\n**RELATED** >>>>>>\n\n' + section.related.map(query => `> [${query.name}](${query.url})`).join('\n\n') + '\n';
+			inquiry += `[P${twodigitindex}](#p${twodigitindex}_${unique_id})\n${words}\n\n`;
+			markdown += `***\n\n**${section.type} ${twodigitindex}** >>>>>>  <a id="p${twodigitindex}_${unique_id}"> </a>\n\n${section.text}\n`;
+		}else{
+			markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
+			if (section.sources && section.sources.length > 0) {
+				markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
+			}
+			if (section.related && section.related.length > 0) {
+				markdown += '\n**RELATED** >>>>>>\n\n' + section.related.map(query => `> [${query.name}](${query.url})`).join('\n\n') + '\n';
+			}
+			markdown += '\n[INDEX^](#index)\n';
 		}
 		return markdown;
 	}).join('\n');
