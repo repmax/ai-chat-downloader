@@ -367,7 +367,7 @@ function createMarkdown(standardData) {
 			index++;
 			twodigitindex = index.toString().padStart(2, '0');
 			const allWords = section.text.split(/\s+/);
-			const words = allWords.slice(0, 60).join(' ') + (allWords.length > 60 ? '...' : '');
+			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length-29).join(' ') : allWords.join(' ');
 			inquiry += `[P${twodigitindex}](#p${twodigitindex}_${unique_id})\n${words}\n\n`;
 			markdown += `***\n\n**${section.type} ${twodigitindex}** >>>>>>  <a id="p${twodigitindex}_${unique_id}"> </a>\n\n${section.text}\n`;
 		}else{
