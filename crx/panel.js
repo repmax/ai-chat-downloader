@@ -187,7 +187,16 @@ const processors = {
 		const data = JSON.parse(response);
 		const title = data.name;
 		const created = data.created_at.slice(0, 10);
-		const dialogue = data.chat_messages.map(chat => ({
+		let tree = data.chat_messages
+		let path = [tree.pop()];
+		// only show the last conversation thread
+		while (tree.length) {
+			let currentTree = tree.pop();
+			if (path[0].parent_message_uuid === currentTree.uuid) {
+				path.unshift(currentTree);
+			}
+		}
+		const dialogue = path.map(chat => ({
 			type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
 			text: chat.content[0].text,
 		}));
