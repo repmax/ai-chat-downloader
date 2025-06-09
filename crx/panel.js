@@ -196,10 +196,41 @@ const processors = {
 				path.unshift(currentTree);
 			}
 		}
-		const dialogue = path.map(chat => ({
-			type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
-			text: chat.content[0].text,
-		}));
+		const dialogue  = path.map(chat => {
+    // 1. Process text content
+    // Filter for text items, map their 'text' property, and join them.
+    // If no text items, this will result in an empty string.
+    const textContent = chat.content
+        .filter(item => item.type === "text")
+        .map(item => item.text)
+        .join('\n\n');
+
+    // 2. Process sources
+    // Filter for web_search tool results
+    const rawSources = chat.content
+        .filter(item => item.name === 'web_search' && item.type === 'tool_result')
+        .flatMap(item => { // Use flatMap to directly get a flattened array of sources
+            // Ensure item.content exists and is an array before mapping
+            if (Array.isArray(item.content)) {
+                return item.content.map(serp => ({
+                    // Provide default values in case title or url are missing
+                    name: serp.title || '',
+                    url: serp.url || '' // A placeholder URL or an empty string, depending on desired default
+                }));
+            }
+            // If item.content is not an array or doesn't exist, return an empty array
+            // so flatMap doesn't add undefined or throw an error.
+            return [];
+        });
+
+    return {
+        type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
+        text: textContent,
+        sources: rawSources
+    };
+});
+
+
 		return {title,dialogue,created};
 	},
 	google: async (response) => {
