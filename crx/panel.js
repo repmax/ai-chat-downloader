@@ -64,7 +64,7 @@ previewButton.addEventListener('click', async () => {
 		// but full chat is always stored in webpage indexedDB after a reload.
 		showLoadingState();
 		const chat_id = tab.url.split("/").pop().split("?")[0];
-		chrome.tabs.reload(tab.id);
+	  chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
 		chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
 			if (tabId === tab.id && changeInfo.status === "complete") {
 				chrome.tabs.onUpdated.removeListener(listener);
@@ -86,19 +86,20 @@ previewButton.addEventListener('click', async () => {
 	}
 
 	showLoadingState();
-
+	let isProcessing = false;
 	const listener = async (request) => {
 		// Filter requests
-		if (!isRelevantRequest(request, botInfo)) return;
-		// Remove the listener early so other requests do not pass while resolving promises (await)
+		if (isProcessing || !isRelevantRequest(request, botInfo)) return;
+		isProcessing = true;		// Remove the listener early so other requests do not pass while resolving promises (await)
 		chrome.devtools.network.onRequestFinished.removeListener(listener);
 		const response = await new Promise((resolve) => request.getContent(resolve));
 		const processor = processors[botInfo.bot];
 		const chatData = await processor(response);
 		updateUI(chatData);
+		isProcessing = false;
 	};
 	chrome.devtools.network.onRequestFinished.addListener(listener);
-	chrome.tabs.reload(tab.id);
+  chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
 });
 
 function getBotInfo(url) {
