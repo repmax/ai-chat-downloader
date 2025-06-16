@@ -21,70 +21,101 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 });
-function itemMapDialog(itemMap) {
-	Object.keys(itemMap).forEach(key => {
-		itemMap[key].children = [];
+
+function chatgpt2Tree(rawMap) {
+	let itemMap = {};
+	Object.keys(rawMap).forEach(key => {
+		const item = rawMap[key];
+		if (item.message && item.message.author && item.message.author.role) {
+			if (item.message.author.role === 'user' && item.message.content && item.message.content.parts) {
+				itemMap[key] = {
+					type: 'PROMPT',
+					parent: item.parent || null,
+					create_time: item.message.create_time,
+					text: item.message.content.parts[0],
+					children: []
+				};
+			} else if (item.message.author.role === 'assistant' && item.message.content && item.message.content.parts) {
+				itemMap[key] = {
+					type: 'BOT',
+					parent: item.parent || null,
+					create_time: item.message.create_time,
+					text: item.message.content.parts[0],
+					botName: item.metadata?.model_slug || '',
+					children: []
+				};
+			} else {
+				// Ignore system messages or other roles
+				itemMap[key] = {
+					type: 'irrelevant',
+					parent: item.parent || null,
+					create_time: item.message.create_time,
+					children: []
+				};
+			}
+		}
 	});
-	const rootItems = [];
+
+	let rootItem;
 	Object.values(itemMap).forEach(item => {
 		if (item.parent && itemMap[item.parent]) {
 			itemMap[item.parent].children.push(item);
 		} else {
-			rootItems.push(item);
+			rootItem = item;
 		}
 	});
+	// sort children by create_time in ascending order
+	Object.values(itemMap).forEach(item => {
+		item.children.sort((a, b) => a.create_time - b.create_time);
+	});
+
+	// not really needed when filtering by role above, but just in case
 	let firstUserNode = null;
 	const findFirstUserNode = (items) => {
 		for (const item of items) {
-			if (item.message?.author?.role === 'user') {
+			if (item.type === 'PROMPT') {
 				firstUserNode = item;
 				return;
 			}
 			findFirstUserNode(item.children);
 		}
 	};
-	findFirstUserNode(rootItems);
+	findFirstUserNode([rootItem]);
 
-	Object.values(itemMap).forEach(item => {
-		item.children.sort((a, b) => a.message.create_time - b.message.create_time);
-	});
+	return tree2Dialogue(firstUserNode, '1');
+}
 
-	const dialgoue = [];
-
+function tree2Dialogue(rootNode, indentLevel) {
+	const dialogue = [];
 	function processNode(node, indentLevel) {
 		console.log(indentLevel, node);
-		const isUser = node.message?.author?.role === 'user';
-		if (isUser && node.message.content?.parts) {
-			dialgoue.push({
-				type: 'PROMPT',
-				text: node.message.content?.parts[0],
+		const isUser = node.type === 'PROMPT';
+		if (isUser && node.text) {
+			dialogue.push({
+				...node,
 				turnId: '|' + indentLevel + '|'
 			})
 		}
-		const isAssistant = node.message?.author?.role === 'assistant';
-		if (isAssistant && node.message.content?.parts) {
-			dialgoue.push({
-				type: 'BOT',
-				text: node.message.content?.parts[0],
-				botName: node.metadata?.model_slug || ''
-			})
+		const isAssistant = node.type === 'BOT';
+		if (isAssistant && node.text) {
+			dialogue.push({ ...node })
 		}
 		if (node.children && node.children.length > 0) {
 			if (showFullTree) {
 				// If the current node is a user node and not something else, the indentlevel should increase with another digit. The digit then increase with 1 for each child node.
 				node.children.forEach((child, index) => {
-					const childIndentLevel = child.message?.author?.role === 'user' ? indentLevel + '|' + (index + 1) : indentLevel;
+					const childIndentLevel = child.type === 'PROMPT' ? indentLevel + '|' + (index + 1) : indentLevel;
 					processNode(child, childIndentLevel);
 				});
 			} else {
 				let lastChild = node.children[node.children.length - 1];
-				const childIndentLevel = lastChild.message?.author?.role === 'user' ? indentLevel + '|' + (node.children.length) : indentLevel;
+				const childIndentLevel = lastChild.type === 'PROMPT' ? indentLevel + '|' + (node.children.length) : indentLevel;
 				processNode(lastChild, childIndentLevel);
 			}
 		}
 	}
-	processNode(firstUserNode, '1');
-	return dialgoue;
+	processNode(rootNode, indentLevel);
+	return dialogue;
 }
 
 function extractWebpageIndexedDB(chat_id) {
@@ -340,7 +371,7 @@ const processors = {
 		let messages = [];
 		let mapping = data.mapping;
 		let dialogue;
-		dialogue = itemMapDialog(mapping);
+		dialogue = chatgpt2Tree(mapping);
 		return { title, dialogue, created };
 	},
 	perplexity: async (response) => {
