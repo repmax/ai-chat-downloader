@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 });
 function itemMapDialog(itemMap) {
-
 	Object.keys(itemMap).forEach(key => {
 		itemMap[key].children = [];
 	});
@@ -71,13 +70,19 @@ function itemMapDialog(itemMap) {
 			})
 		}
 		if (node.children && node.children.length > 0) {
-			node.children.forEach((child, index) => {
-				const childIndentLevel = child.message?.author?.role === 'user' ? indentLevel + '|' + (index + 1) : indentLevel;
-				processNode(child, childIndentLevel);
-			});
+			if (showFullTree) {
+				// If the current node is a user node and not something else, the indentlevel should increase with another digit. The digit then increase with 1 for each child node.
+				node.children.forEach((child, index) => {
+					const childIndentLevel = child.message?.author?.role === 'user' ? indentLevel + '|' + (index + 1) : indentLevel;
+					processNode(child, childIndentLevel);
+				});
+			} else {
+				let lastChild = node.children[node.children.length - 1];
+				const childIndentLevel = lastChild.message?.author?.role === 'user' ? indentLevel + '|' + (node.children.length) : indentLevel;
+				processNode(lastChild, childIndentLevel);
+			}
 		}
 	}
-
 	processNode(firstUserNode, '1');
 	return dialgoue;
 }
@@ -335,25 +340,7 @@ const processors = {
 		let messages = [];
 		let mapping = data.mapping;
 		let dialogue;
-		if (showFullTree) {
-			dialogue = itemMapDialog(mapping);
-		} else {
-			let keys = Object.keys(mapping);
-			messages.push(mapping[keys.at(-1)]); // start from last because messages are sorted by timestamp.
-			while (messages.at(0).parent)
-				messages.unshift(mapping[messages[0].parent]);
-			while (messages.at(-1).children && messages.at(-1).children.length > 0)
-				messages.push(mapping[messages.at(-1).children[0]]);
-			dialogue = messages
-				.map(item => item.message)
-				.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
-				.map((chat, index) => ({
-					type: chat.author.role === 'user' ? 'PROMPT' : 'BOT',
-					text: chat.content.parts[0],
-					botName: chat.metadata?.model_slug || '',
-					turnId: index.toString().padStart(2, '0')
-				}));
-		}
+		dialogue = itemMapDialog(mapping);
 		return { title, dialogue, created };
 	},
 	perplexity: async (response) => {
