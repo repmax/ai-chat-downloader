@@ -4,12 +4,82 @@ const markdownTextarea = document.getElementById('markdown');
 const filenameInput = document.getElementById('filename');
 
 let fullUrl, hostUrl;
-				
+let showFullTree = true;
+
 function listenWebpageExtract(message, sender, sendResponse) {
 	if (message.type === "chat") {
 		chrome.runtime.onMessage.removeListener(listenWebpageExtract);
 		updateUI(message.result);
 	}
+}
+document.addEventListener('DOMContentLoaded', () => {
+	const showFullTreeCheckbox = document.getElementById('showFullTree');
+	if (showFullTreeCheckbox) {
+		showFullTreeCheckbox.checked = showFullTree;
+		showFullTreeCheckbox.addEventListener('change', (e) => {
+			showFullTree = e.target.checked;
+		});
+	}
+});
+function itemMapDialog(itemMap) {
+
+	Object.keys(itemMap).forEach(key => {
+		itemMap[key].children = [];
+	});
+	const rootItems = [];
+	Object.values(itemMap).forEach(item => {
+		if (item.parent && itemMap[item.parent]) {
+			itemMap[item.parent].children.push(item);
+		} else {
+			rootItems.push(item);
+		}
+	});
+	let firstUserNode = null;
+	const findFirstUserNode = (items) => {
+		for (const item of items) {
+			if (item.message?.author?.role === 'user') {
+				firstUserNode = item;
+				return;
+			}
+			findFirstUserNode(item.children);
+		}
+	};
+	findFirstUserNode(rootItems);
+
+	Object.values(itemMap).forEach(item => {
+		item.children.sort((a, b) => a.message.create_time - b.message.create_time);
+	});
+
+	const dialgoue = [];
+
+	function processNode(node, indentLevel) {
+		console.log(indentLevel, node);
+		const isUser = node.message?.author?.role === 'user';
+		if (isUser && node.message.content?.parts) {
+			dialgoue.push({
+				type: 'PROMPT',
+				text: node.message.content?.parts[0],
+				turnId: '|' + indentLevel + '|'
+			})
+		}
+		const isAssistant = node.message?.author?.role === 'assistant';
+		if (isAssistant && node.message.content?.parts) {
+			dialgoue.push({
+				type: 'BOT',
+				text: node.message.content?.parts[0],
+				botName: node.metadata?.model_slug || ''
+			})
+		}
+		if (node.children && node.children.length > 0) {
+			node.children.forEach((child, index) => {
+				const childIndentLevel = child.message?.author?.role === 'user' ? indentLevel + '|' + (index + 1) : indentLevel;
+				processNode(child, childIndentLevel);
+			});
+		}
+	}
+
+	processNode(firstUserNode, '1');
+	return dialgoue;
 }
 
 function extractWebpageIndexedDB(chat_id) {
@@ -23,14 +93,14 @@ function extractWebpageIndexedDB(chat_id) {
 		getAllRequest.onsuccess = () => {
 			const result = getAllRequest.result.find(item => item.key === chat_id);
 			const title = result.data.chat_session.title;
-			const createdUnix = result.data.chat_session.updated_at*1000;
+			const createdUnix = result.data.chat_session.updated_at * 1000;
 			const created = new Date(createdUnix).toISOString().slice(0, 10);
 			let tree = result.data.chat_messages
 			let path = [tree.pop()];
 			// only show the last conversation thread
 			while (tree.length) {
 				let currentTree = tree.at(-1);
-				if(!currentTree.parent_id){
+				if (!currentTree.parent_id) {
 					path.unshift(tree.pop());
 					break;
 				}
@@ -42,11 +112,11 @@ function extractWebpageIndexedDB(chat_id) {
 			}
 			const dialogue = path
 				.map(message => ({
-						type: message.type === 'USER' ? 'PROMPT' : 'BOT',
-						text: message.thinking_content ? "(NOTES)\n" + message.thinking_content + "\n(/NOTES)\n\n" + message.content : message.content,
-						botName: ''
-					}));
-			chrome.runtime.sendMessage({type:"chat", result: {title,dialogue,created}});
+					type: message.type === 'USER' ? 'PROMPT' : 'BOT',
+					text: message.thinking_content ? "(NOTES)\n" + message.thinking_content + "\n(/NOTES)\n\n" + message.content : message.content,
+					botName: ''
+				}));
+			chrome.runtime.sendMessage({ type: "chat", result: { title, dialogue, created } });
 		};
 	};
 }
@@ -59,12 +129,12 @@ previewButton.addEventListener('click', async () => {
 	fullUrl = tab.url;
 	hostUrl = new URL(fullUrl).host.replace("www.", "");
 
-	if(fullUrl.includes("chat.deepseek.com")){
+	if (fullUrl.includes("chat.deepseek.com")) {
 		// Deepseek is not sending full chat via network request on every reload, 
 		// but full chat is always stored in webpage indexedDB after a reload.
 		showLoadingState();
 		const chat_id = tab.url.split("/").pop().split("?")[0];
-	  chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
+		chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
 		chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
 			if (tabId === tab.id && changeInfo.status === "complete") {
 				chrome.tabs.onUpdated.removeListener(listener);
@@ -99,16 +169,16 @@ previewButton.addEventListener('click', async () => {
 		isProcessing = false;
 	};
 	chrome.devtools.network.onRequestFinished.addListener(listener);
-  chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
+	chrome.devtools.inspectedWindow.reload({ ignoreCache: true });
 });
 
 function getBotInfo(url) {
 	const botPatterns = {
 		'claude.ai': { bot: 'claude', pattern: /\/chat\/([^/?]+)/, contentType: 'application/json' },
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
-		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol:"GET" },
-		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol:"GET" },
-		'google.com': { bot: 'google', networkID: 'ResolveDriveResource', contentType: 'application/json', protocol:"POST" },
+		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol: "GET" },
+		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol: "GET" },
+		'google.com': { bot: 'google', networkID: 'ResolveDriveResource', contentType: 'application/json', protocol: "POST" },
 		'perplexity.ai': { bot: 'perplexity', pattern: /\/search\/([^/?]+)/ }
 	};
 
@@ -147,7 +217,7 @@ function isRelevantRequest(request, { networkID, contentType = null, protocol = 
 
 const processors = {
 	grok: async (response) => {
-		let {data} = JSON.parse(response);
+		let { data } = JSON.parse(response);
 		const chat_list = data['grok_conversation_items_by_rest_id']['items'].reverse();
 		const title = chat_list[0].message;
 		const created = new Date(chat_list[0].created_at_ms).toISOString().slice(0, 10);
@@ -160,7 +230,7 @@ const processors = {
 			})) || []
 		}));
 
-		return {title,dialogue,created};
+		return { title, dialogue, created };
 	},
 	you: async (response) => {
 		const chatEvent = response.split('\n\n').find(event => event.startsWith('event: youChatCachedChat'));
@@ -182,7 +252,7 @@ const processors = {
 					})) || []
 				}
 			]);
-		return {title,dialogue};
+		return { title, dialogue };
 	},
 	claude: async (response) => {
 		const data = JSON.parse(response);
@@ -197,65 +267,65 @@ const processors = {
 				path.unshift(currentTree);
 			}
 		}
-		const dialogue  = path.map(chat => {
-    // 1. Process text content
-    // Filter for text items, map their 'text' property, and join them.
-    // If no text items, this will result in an empty string.
-    const textContent = chat.content
-        .filter(item => item.type === "text")
-        .map(item => item.text)
-        .join('\n\n');
+		const dialogue = path.map(chat => {
+			// 1. Process text content
+			// Filter for text items, map their 'text' property, and join them.
+			// If no text items, this will result in an empty string.
+			const textContent = chat.content
+				.filter(item => item.type === "text")
+				.map(item => item.text)
+				.join('\n\n');
 
-    // 2. Process sources
-    // Filter for web_search tool results
-    const rawSources = chat.content
-        .filter(item => item.name === 'web_search' && item.type === 'tool_result')
-        .flatMap(item => { // Use flatMap to directly get a flattened array of sources
-            // Ensure item.content exists and is an array before mapping
-            if (Array.isArray(item.content)) {
-                return item.content.map(serp => ({
-                    // Provide default values in case title or url are missing
-                    name: serp.title || '',
-                    url: serp.url || '' // A placeholder URL or an empty string, depending on desired default
-                }));
-            }
-            // If item.content is not an array or doesn't exist, return an empty array
-            // so flatMap doesn't add undefined or throw an error.
-            return [];
-        });
+			// 2. Process sources
+			// Filter for web_search tool results
+			const rawSources = chat.content
+				.filter(item => item.name === 'web_search' && item.type === 'tool_result')
+				.flatMap(item => { // Use flatMap to directly get a flattened array of sources
+					// Ensure item.content exists and is an array before mapping
+					if (Array.isArray(item.content)) {
+						return item.content.map(serp => ({
+							// Provide default values in case title or url are missing
+							name: serp.title || '',
+							url: serp.url || '' // A placeholder URL or an empty string, depending on desired default
+						}));
+					}
+					// If item.content is not an array or doesn't exist, return an empty array
+					// so flatMap doesn't add undefined or throw an error.
+					return [];
+				});
 
-    return {
-        type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
-        text: textContent,
-        sources: rawSources
-    };
-});
+			return {
+				type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
+				text: textContent,
+				sources: rawSources
+			};
+		});
 
 
-		return {title,dialogue,created};
+		return { title, dialogue, created };
 	},
 	google: async (response) => {
 		const data = JSON.parse(response);
 		const title = data[0][4][0].trim();
 		const dialogueRaw = data[0].at(-1)[0]
-		.filter(chat => typeof chat[0] === 'string')
-		.map(chat => ({
-			type: chat.some(item => item === 'user') ? 'PROMPT' : 'BOT',
-			text: chat[0],
-		}));
+			.filter(chat => typeof chat[0] === 'string')
+			.map(chat => ({
+				type: chat.some(item => item === 'user') ? 'PROMPT' : 'BOT',
+				text: chat[0],
+			}));
 		// if a 'BOT' message is followed by another 'BOT' message, they should be merged.
-		const dialogue =[];
+		const dialogue = [];
 		for (let i = 0; i < dialogueRaw.length - 1; i++) {
 			if (dialogueRaw[i].type === 'PROMPT') {
 				dialogue.push(dialogueRaw[i]);
-			}else	if (dialogueRaw[i].type === 'BOT' && dialogueRaw[i + 1].type === 'BOT') {
-				dialogue.push({type: dialogueRaw[i].type, text: "(NOTES)\n\n" + dialogueRaw[i].text + "\n\n(/NOTES)\n\n" + dialogueRaw[i + 1].text});
+			} else if (dialogueRaw[i].type === 'BOT' && dialogueRaw[i + 1].type === 'BOT') {
+				dialogue.push({ type: dialogueRaw[i].type, text: "(NOTES)\n\n" + dialogueRaw[i].text + "\n\n(/NOTES)\n\n" + dialogueRaw[i + 1].text });
 				i++; // jump the next 'BOT' message
-			}else{
+			} else {
 				dialogue.push(dialogueRaw[i]);
 			}
 		}
-		return {title,dialogue};
+		return { title, dialogue };
 	},
 	chatgpt: async (response) => {
 		const data = JSON.parse(response);
@@ -264,21 +334,27 @@ const processors = {
 		const created = new Date(createdUnix).toISOString().slice(0, 10);
 		let messages = [];
 		let mapping = data.mapping;
-		let keys = Object.keys(mapping);
-		messages.push(mapping[keys.at(-1)]); // start from last because messages are sorted by timestamp.
-		while (messages.at(0).parent)
-			messages.unshift(mapping[messages[0].parent]);
-		while (messages.at(-1).children && messages.at(-1).children.length > 0)
-			messages.push(mapping[messages.at(-1).children[0]]);
-		const dialogue = messages
-			.map(item => item.message)
-			.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
-			.map(chat => ({
-				type: chat.author.role === 'user' ? 'PROMPT' : 'BOT',
-				text: chat.content.parts[0],
-				botName: chat.metadata?.model_slug || ''
-			}));
-		return {title,dialogue,created};
+		let dialogue;
+		if (showFullTree) {
+			dialogue = itemMapDialog(mapping);
+		} else {
+			let keys = Object.keys(mapping);
+			messages.push(mapping[keys.at(-1)]); // start from last because messages are sorted by timestamp.
+			while (messages.at(0).parent)
+				messages.unshift(mapping[messages[0].parent]);
+			while (messages.at(-1).children && messages.at(-1).children.length > 0)
+				messages.push(mapping[messages.at(-1).children[0]]);
+			dialogue = messages
+				.map(item => item.message)
+				.filter(item => item && item.content.content_type && item.content.content_type === "text" && item.author && ['user', 'assistant'].includes(item.author.role))
+				.map((chat, index) => ({
+					type: chat.author.role === 'user' ? 'PROMPT' : 'BOT',
+					text: chat.content.parts[0],
+					botName: chat.metadata?.model_slug || '',
+					turnId: index.toString().padStart(2, '0')
+				}));
+		}
+		return { title, dialogue, created };
 	},
 	perplexity: async (response) => {
 		const pattern = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
@@ -322,11 +398,11 @@ const processors = {
 				standardEntry
 			];
 		}).flat();
-		return {title,dialogue};
+		return { title, dialogue };
 	}
 };
 
-function updateUI({ title, created=null, dialogue }) {
+function updateUI({ title, created = null, dialogue }) {
 	const { frontmatter, slug } = createFrontMatter(title, created);
 	const markdown = createMarkdown(dialogue);
 	markdownTextarea.value = `${frontmatter}\n${markdown}`;
@@ -397,7 +473,6 @@ Link: [${hostUrl}](${fullUrl})
 	return { frontmatter, slug };
 }
 
-// Function to generate markdown content
 function createMarkdown(standardData) {
 	let unique_id = Math.random().toString(36).substring(2, 6);
 	let inquiry = '## Index\n\n';
@@ -406,12 +481,12 @@ function createMarkdown(standardData) {
 		let markdown = '';
 		if (section.type === 'PROMPT') {
 			index++;
-			twodigitindex = index.toString().padStart(2, '0');
+			twodigitindex = section.turnId || index.toString().padStart(2, '0');
 			const allWords = section.text.split(/\s+/);
-			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length-29).join(' ') : allWords.join(' ');
-			inquiry += `[P${twodigitindex}](#p${twodigitindex}_${unique_id})\n${words}\n\n`;
-			markdown += `***\n\n**${section.type} ${twodigitindex}** >>>>>>  <a id="p${twodigitindex}_${unique_id}"> </a>\n\n${section.text}\n`;
-		}else{
+			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length - 29).join(' ') : allWords.join(' ');
+			inquiry += `[**${twodigitindex}**](#p${twodigitindex}_${unique_id})\n${words}\n\n`;
+			markdown += `***\n\n**${twodigitindex}** <a id="p${twodigitindex}_${unique_id}"></a>\n\n***\n\n**${section.type}** >>>>>>>\n\n${section.text}\n`;
+		} else {
 			markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
 			if (section.sources && section.sources.length > 0) {
 				markdown += '\n**SOURCES** >>>>>>\n\n' + section.sources.map((source, index) => `${index + 1}. [${source.name}](${source.url})`).join('\n') + '\n';
