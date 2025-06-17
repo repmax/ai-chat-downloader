@@ -22,6 +22,89 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 });
 
+function claude2Tree(rawMap) {
+	let itemMap = {};
+	rawMap.forEach(item => {
+		if (item.sender === 'human') {
+			itemMap[item.uuid] = {
+				type: 'PROMPT',
+				parent: item.parent_message_uuid || null,
+				create_time: new Date(item.created_at).getTime() / 1000, // Convert to timestamp
+				text: item.content
+					.filter(content => content.type === "text")
+					.map(content => content.text)
+					.join('\n\n'),
+				children: []
+			};
+		} else if (item.sender === 'assistant') {
+			const textContent = item.content
+				.filter(content => content.type === "text")
+				.map(content => content.text)
+				.join('\n\n');
+			const rawSources = item.content
+				.filter(content => content.name === 'web_search' && content.type === 'tool_result')
+				.flatMap(content => {
+					if (Array.isArray(content.content)) {
+						return content.content.map(serp => ({
+							name: serp.title || '',
+							url: serp.url || ''
+						}));
+					}
+					return [];
+				});
+
+			itemMap[item.uuid] = {
+				type: 'BOT',
+				parent: item.parent_message_uuid || null,
+				create_time: new Date(item.created_at).getTime() / 1000, // Convert to timestamp
+				text: textContent,
+				botName: 'claude',
+				sources: rawSources, // Add sources to the item
+				children: []
+			};
+		} else {
+			itemMap[item.uuid] = {
+				type: 'irrelevant',
+				parent: item.parent_message_uuid || null,
+				create_time: new Date(item.created_at).getTime() / 1000,
+				children: []
+			};
+		}
+	});
+	let rootItem;
+	Object.values(itemMap).forEach(item => {
+		if (item.parent && itemMap[item.parent]) {
+			itemMap[item.parent].children.push(item);
+		} else {
+			rootItem = item;
+		}
+	});
+
+	Object.values(itemMap).forEach(item => {
+		item.children.sort((a, b) => a.create_time - b.create_time);
+	});
+
+	let firstUserNode = null;
+	const findFirstUserNode = (items) => {
+		for (const item of items) {
+			if (item.type === 'PROMPT') {
+				firstUserNode = item;
+				return;
+			}
+			if (item.children && item.children.length > 0) {
+				findFirstUserNode(item.children);
+			}
+		}
+	};
+
+	if (rootItem) {
+		findFirstUserNode([rootItem]);
+	}
+
+	return tree2Dialogue(firstUserNode, '1');
+}
+
+
 function chatgpt2Tree(rawMap) {
 	let itemMap = {};
 	Object.keys(rawMap).forEach(key => {
@@ -45,7 +128,6 @@ function chatgpt2Tree(rawMap) {
 					children: []
 				};
 			} else {
-				// Ignore system messages or other roles
 				itemMap[key] = {
 					type: 'irrelevant',
 					parent: item.parent || null,
@@ -64,12 +146,9 @@ function chatgpt2Tree(rawMap) {
 			rootItem = item;
 		}
 	});
-	// sort children by create_time in ascending order
 	Object.values(itemMap).forEach(item => {
 		item.children.sort((a, b) => a.create_time - b.create_time);
 	});
-
-	// not really needed when filtering by role above, but just in case
 	let firstUserNode = null;
 	const findFirstUserNode = (items) => {
 		for (const item of items) {
@@ -294,50 +373,7 @@ const processors = {
 		const data = JSON.parse(response);
 		const title = data.name;
 		const created = data.created_at.slice(0, 10);
-		let tree = data.chat_messages
-		let path = [tree.pop()];
-		// only show the last conversation thread
-		while (tree.length) {
-			let currentTree = tree.pop();
-			if (path[0].parent_message_uuid === currentTree.uuid) {
-				path.unshift(currentTree);
-			}
-		}
-		const dialogue = path.map(chat => {
-			// 1. Process text content
-			// Filter for text items, map their 'text' property, and join them.
-			// If no text items, this will result in an empty string.
-			const textContent = chat.content
-				.filter(item => item.type === "text")
-				.map(item => item.text)
-				.join('\n\n');
-
-			// 2. Process sources
-			// Filter for web_search tool results
-			const rawSources = chat.content
-				.filter(item => item.name === 'web_search' && item.type === 'tool_result')
-				.flatMap(item => { // Use flatMap to directly get a flattened array of sources
-					// Ensure item.content exists and is an array before mapping
-					if (Array.isArray(item.content)) {
-						return item.content.map(serp => ({
-							// Provide default values in case title or url are missing
-							name: serp.title || '',
-							url: serp.url || '' // A placeholder URL or an empty string, depending on desired default
-						}));
-					}
-					// If item.content is not an array or doesn't exist, return an empty array
-					// so flatMap doesn't add undefined or throw an error.
-					return [];
-				});
-
-			return {
-				type: chat.sender === 'human' ? 'PROMPT' : 'BOT',
-				text: textContent,
-				sources: rawSources
-			};
-		});
-
-
+		const dialogue = claude2Tree(data.chat_messages);
 		return { title, dialogue, created };
 	},
 	google: async (response) => {
