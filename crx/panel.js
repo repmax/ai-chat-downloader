@@ -291,6 +291,7 @@ function getBotInfo(url) {
 	const botPatterns = {
 		'claude.ai': { bot: 'claude', pattern: /\/chat\/([^/?]+)/, contentType: 'application/json' },
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
+		'minimax.io': { bot: 'minimax', pattern: /chatID=([^/?]+)/, contentType: 'application/json' },
 		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol: "GET" },
 		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol: "GET" },
 		'google.com': { bot: 'google', networkID: 'ResolveDriveResource', contentType: 'application/json', protocol: "POST" },
@@ -369,6 +370,23 @@ const processors = {
 				}
 			]);
 		return { title, dialogue };
+	},
+	minimax: async (response) => {
+		const data = JSON.parse(response).data;
+		const title = data.title;
+		const created = new Date(data.messages[0].createTime).toISOString().slice(0, 10);
+		const dialogue = data.messages.map(message => {
+			if (message.msgType === 'user') {
+				return { type: 'PROMPT', text: message.content};
+			} else if (message.msgType === 'system') {
+				return {
+					type: 'BOT',
+					text: message.content
+				};
+			}
+			return null;
+		}).filter(item => item !== null);
+		return { title, dialogue, created };
 	},
 	claude: async (response) => {
 		const data = JSON.parse(response);
