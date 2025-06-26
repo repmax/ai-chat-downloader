@@ -406,10 +406,10 @@ const processors = {
 			}));
 		// if a 'BOT' message is followed by another 'BOT' message, they should be merged.
 		const dialogue = [];
-		for (let i = 0; i < dialogueRaw.length - 1; i++) {
+		for (let i = 0; i < dialogueRaw.length; i++) {
 			if (dialogueRaw[i].type === 'PROMPT') {
 				dialogue.push(dialogueRaw[i]);
-			} else if (dialogueRaw[i].type === 'BOT' && dialogueRaw[i + 1].type === 'BOT') {
+			} else if (dialogueRaw[i].type === 'BOT' && dialogueRaw[i + 1] && dialogueRaw[i + 1].type === 'BOT') {
 				dialogue.push({ type: dialogueRaw[i].type, text: "(NOTES)\n\n" + dialogueRaw[i].text + "\n\n(/NOTES)\n\n" + dialogueRaw[i + 1].text });
 				i++; // jump the next 'BOT' message
 			} else {
