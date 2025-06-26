@@ -81,7 +81,7 @@ function claude2Tree(rawMap) {
 	});
 
 	Object.values(itemMap).forEach(item => {
-		item.children.sort((a, b) => a.create_time - b.create_time);
+		item.children.sort((a, b) => b.create_time - a.create_time);
 	});
 
 	let firstUserNode = null;
@@ -147,7 +147,7 @@ function chatgpt2Tree(rawMap) {
 		}
 	});
 	Object.values(itemMap).forEach(item => {
-		item.children.sort((a, b) => a.create_time - b.create_time);
+		item.children.sort((a, b) => b.create_time - a.create_time);
 	});
 	let firstUserNode = null;
 	const findFirstUserNode = (items) => {
@@ -182,13 +182,13 @@ function tree2Dialogue(rootNode, indentLevel) {
 		if (node.children && node.children.length > 0) {
 			if (showFullTree) {
 				// If the current node is a user node and not something else, the indentlevel should increase with another digit. The digit then increase with 1 for each child node.
-				node.children.forEach((child, index) => {
-					const childIndentLevel = child.type === 'PROMPT' ? indentLevel + '|' + (index + 1) : indentLevel;
+				node.children.forEach((child, index, array) => {
+					const childIndentLevel = child.type === 'PROMPT' ? indentLevel + '|' + (array.length - index) : indentLevel;
 					processNode(child, childIndentLevel);
 				});
 			} else {
-				let lastChild = node.children[node.children.length - 1];
-				const childIndentLevel = lastChild.type === 'PROMPT' ? indentLevel + '|' + (node.children.length) : indentLevel;
+				let lastChild = node.children[0];
+				const childIndentLevel = lastChild.type === 'PROMPT' ? indentLevel + '|' + (array.length) : indentLevel;
 				processNode(lastChild, childIndentLevel);
 			}
 		}
@@ -550,15 +550,17 @@ function createMarkdown(standardData) {
 	let unique_id = Math.random().toString(36).substring(2, 6);
 	let inquiry = '## Index\n\n';
 	let index = 0;
+	let prevTurnIdLength = 0;
 	let chat = standardData.map(section => {
 		let markdown = '';
 		if (section.type === 'PROMPT') {
 			index++;
-			twodigitindex = section.turnId || index.toString().padStart(2, '0');
+			let path = section.turnId || index.toString().padStart(2, '0');
 			const allWords = section.text.split(/\s+/);
 			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length - 29).join(' ') : allWords.join(' ');
-			inquiry += `[**${twodigitindex}**](#p${twodigitindex}_${unique_id})\n${words}\n\n`;
-			markdown += `***\n\n**${twodigitindex}** <a id="p${twodigitindex}_${unique_id}"></a>\n\n***\n\n**${section.type}** >>>>>>>\n\n${section.text}\n`;
+			inquiry += `[**${path}**](#p${path}_${unique_id})${prevTurnIdLength >= path.length ? " ↖️" : ""}\n${words}\n\n`;
+			prevTurnIdLength = path.length;
+			markdown += `***\n\n**${path}** <a id="p${path}_${unique_id}"></a>\n\n***\n\n**${section.type}** >>>>>>>\n\n${section.text}\n`;
 		} else {
 			markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
 			if (section.sources && section.sources.length > 0) {
