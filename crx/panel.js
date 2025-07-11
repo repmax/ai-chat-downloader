@@ -23,7 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function claude2Tree(rawMap) {
-	let itemMap = {};
+	// Create a map to hold the items. Initialize with a root item. Claude include parent ids but but not root item. 
+	let itemMap = {"00000000-0000-4000-8000-000000000000":{
+				type: 'irrelevant',
+				parent: null,
+				create_time: new Date(0).getTime() / 1000,
+				children: []
+			}};
 	rawMap.forEach(item => {
 		if (item.sender === 'human') {
 			itemMap[item.uuid] = {
@@ -84,24 +90,7 @@ function claude2Tree(rawMap) {
 		item.children.sort((a, b) => b.create_time - a.create_time);
 	});
 
-	let firstUserNode = null;
-	const findFirstUserNode = (items) => {
-		for (const item of items) {
-			if (item.type === 'PROMPT') {
-				firstUserNode = item;
-				return;
-			}
-			if (item.children && item.children.length > 0) {
-				findFirstUserNode(item.children);
-			}
-		}
-	};
-
-	if (rootItem) {
-		findFirstUserNode([rootItem]);
-	}
-
-	return tree2Dialogue(firstUserNode, '1');
+	return tree2Dialogue(rootItem);
 }
 
 
@@ -150,10 +139,10 @@ function chatgpt2Tree(rawMap) {
 		item.children.sort((a, b) => b.create_time - a.create_time);
 	});
 
-	return treeChatgpt2Dialogue(rootItem);
+	return tree2Dialogue(rootItem);
 }
 
-function treeChatgpt2Dialogue(rootNode) {
+function tree2Dialogue(rootNode) {
 	const dialogue = [];
 	function processNode(node, indentLevel) {
 		console.log(indentLevel, node);
@@ -183,39 +172,6 @@ function treeChatgpt2Dialogue(rootNode) {
 		}
 	}
 	processNode(rootNode, "");
-	return dialogue;
-}
-
-function tree2Dialogue(rootNode, indentLevel) {
-	const dialogue = [];
-	function processNode(node, indentLevel) {
-		console.log(indentLevel, node);
-		const isUser = node.type === 'PROMPT';
-		if (isUser && node.text) {
-			dialogue.push({
-				...node,
-				turnId: '|' + indentLevel + '|'
-			})
-		}
-		const isAssistant = node.type === 'BOT';
-		if (isAssistant && node.text) {
-			dialogue.push({ ...node })
-		}
-		if (node.children && node.children.length > 0) {
-			if (showFullTree) {
-				// If the current node is a user node and not something else, the indentlevel should increase with another digit. The digit then increase with 1 for each child node.
-				node.children.forEach((child, index, array) => {
-					const childIndentLevel = child.type === 'PROMPT' ? indentLevel + '|' + (array.length - index) : indentLevel;
-					processNode(child, childIndentLevel);
-				});
-			} else {
-				let lastChild = node.children[0];
-				const childIndentLevel = lastChild.type === 'PROMPT' ? indentLevel + '|' + (array.length) : indentLevel;
-				processNode(lastChild, childIndentLevel);
-			}
-		}
-	}
-	processNode(rootNode, indentLevel);
 	return dialogue;
 }
 
