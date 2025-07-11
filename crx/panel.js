@@ -149,19 +149,41 @@ function chatgpt2Tree(rawMap) {
 	Object.values(itemMap).forEach(item => {
 		item.children.sort((a, b) => b.create_time - a.create_time);
 	});
-	let firstUserNode = null;
-	const findFirstUserNode = (items) => {
-		for (const item of items) {
-			if (item.type === 'PROMPT') {
-				firstUserNode = item;
-				return;
-			}
-			findFirstUserNode(item.children);
-		}
-	};
-	findFirstUserNode([rootItem]);
 
-	return tree2Dialogue(firstUserNode, '1');
+	return treeChatgpt2Dialogue(rootItem);
+}
+
+function treeChatgpt2Dialogue(rootNode) {
+	const dialogue = [];
+	function processNode(node, indentLevel) {
+		console.log(indentLevel, node);
+		const isUser = node.type === 'PROMPT';
+		if (isUser && node.text) {
+			dialogue.push({
+				...node,
+				turnId: indentLevel + '|'
+			})
+		}
+		const isAssistant = node.type === 'BOT';
+		if (isAssistant && node.text) {
+			dialogue.push({ ...node })
+		}
+		if (node.children && node.children.length > 0) {
+			if (showFullTree) {
+				// If the current node is a user node and not something else, the indentlevel should increase with another digit. The digit then increase with 1 for each child node.
+				node.children.forEach((child, index, array) => {
+					const childIndentLevel = child.type === 'PROMPT' ? indentLevel + '|' + (array.length - index) : indentLevel;
+					processNode(child, childIndentLevel);
+				});
+			} else {
+				let lastChild = node.children[0];
+				const childIndentLevel = lastChild.type === 'PROMPT' ? indentLevel + '|' + (array.length) : indentLevel;
+				processNode(lastChild, childIndentLevel);
+			}
+		}
+	}
+	processNode(rootNode, "");
+	return dialogue;
 }
 
 function tree2Dialogue(rootNode, indentLevel) {
