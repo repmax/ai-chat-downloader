@@ -271,6 +271,7 @@ function getBotInfo(url) {
 		'chatgpt.com': { bot: 'chatgpt', pattern: /\/c\/([^/?]+)/, contentType: 'application/json' },
 		'minimax.io': { bot: 'minimax', pattern: /chatID=([^/?]+)/, contentType: 'application/json' },
 		'you.com': { bot: 'you', networkID: 'streamingSavedChat', protocol: "GET" },
+		'kimi.com': { bot: 'kimi', networkID: 'scroll', protocol: "POST" },
 		'x.com': { bot: 'grok', networkID: 'GrokConversation', protocol: "GET" },
 		'google.com': { bot: 'google', networkID: 'ResolveDriveResource', contentType: 'application/json', protocol: "POST" },
 		'perplexity.ai': { bot: 'perplexity', pattern: /\/search\/([^/?]+)/ }
@@ -311,6 +312,24 @@ function isRelevantRequest(request, { networkID, contentType = null, protocol = 
 }
 
 const processors = {
+	kimi: async (response) => {
+		let data = JSON.parse(response);
+		const chat_list = data['items'];
+		const title = chat_list[0].content;
+		const created = chat_list[0]['created_at'].slice(0, 10);
+		const dialogue = chat_list.map(chat => ({
+			type: chat.role === 'user' ? 'PROMPT' : 'BOT',
+			text: chat.content,
+			...chat.search_citation && {
+				sources: Object.values(chat.search_citation).map(serp => ({
+				name: serp.site_name,
+				url: serp.url
+			}))
+			}
+		}));
+
+		return { title, dialogue, created };
+	},
 	grok: async (response) => {
 		let { data } = JSON.parse(response);
 		const chat_list = data['grok_conversation_items_by_rest_id']['items'].reverse();
