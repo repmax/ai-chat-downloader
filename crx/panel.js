@@ -564,10 +564,9 @@ Link: [${hostUrl}](${fullUrl})
 
 	return { frontmatter, slug };
 }
-const checksum = str => {
-	// Simple checksum based on char codes
-	return str.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-};
+const checksum = str =>
+  (str.match(/\d+/g) || []).reduce((sum, n) => sum + Number(n), 0);
+
 function createMarkdown(standardData) {
 	let unique_id = Math.random().toString(36).substring(2, 6);
 	let inquiry = '## Index\n\n';
