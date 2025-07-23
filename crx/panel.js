@@ -576,7 +576,7 @@ function createMarkdown(standardData) {
 		let markdown = '';
 		if (section.type === 'PROMPT') {
 			index++;
-			let path = section.turnId || index.toString().padStart(2, '0');
+			let path = section.turnId || "|"+index.toString()+"|";
 			const allWords = section.text.split(/\s+/);
 			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length - 29).join(' ') : allWords.join(' ');
 			inquiry += `[**${path}**](#p${path}_${unique_id})${prevTurnIdLength > checksum(path) ? " ↖️" : ""}\n${words}\n\n`;
