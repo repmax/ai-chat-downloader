@@ -572,15 +572,31 @@ function createMarkdown(standardData) {
 	let inquiry = '## Index\n\n';
 	let index = 0;
 	let prevTurnIdLength = 0;
+	let prevCaretCount = 0;
+	const icons = ["🟩", "🟨", "🟥", "🟪", "🟦"];
+  const iconLast = ["🟢", "🟡", "🔴", "🟣", "🔵"];
 	let chat = standardData.map(section => {
 		let markdown = '';
 		if (section.type === 'PROMPT') {
 			index++;
-			let path = section.turnId || "|"+index.toString()+"|";
+			let path = "|"+index+"|";
+			let icon = "";
 			const allWords = section.text.split(/\s+/);
-			const words = allWords.length > 60 ? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length - 29).join(' ') : allWords.join(' ');
-			inquiry += `[**${path}**](#p${path}_${unique_id})${prevTurnIdLength > checksum(path) ? " ↖️" : ""}\n${words}\n\n`;
-			prevTurnIdLength = checksum(path);
+			const words = allWords.length > 60 
+				? allWords.slice(0, 30).join(' ') + ' ... ' + allWords.slice(allWords.length - 29).join(' ')
+				: allWords.join(' ');
+			if (section.turnId) {
+					path = section.turnId
+					let caretCount = (path.match(/\^/g) || []).length;
+					if (prevTurnIdLength > checksum(path)){
+						icon = iconLast[((caretCount-1) % iconLast.length)];
+					}else if(prevCaretCount < caretCount) {
+						icon = icons[((caretCount-1) % icons.length)];
+					}
+					prevTurnIdLength = checksum(path);
+					prevCaretCount = caretCount;
+			}
+			inquiry += `[**${path}**](#p${path}_${unique_id})${icon}\n${words}\n\n`;
 			markdown += `***\n\n**${path}** <a id="p${path}_${unique_id}"></a>\n\n***\n\n**${section.type}** >>>>>>>\n\n${section.text}\n`;
 		} else {
 			markdown += `***\n\n**${section.type}** >>>>>>\n\n${section.text}\n`;
