@@ -1,4 +1,15 @@
 // DOM elements
+const profileInput = document.getElementById('profileInput');
+chrome.storage.local.get(['profileName'], (result) => {
+	if (result.profileName && profileInput) {
+		profileInput.value = result.profileName;
+	}
+});
+
+profileInput.addEventListener('input', () => {
+	chrome.storage.local.set({ profileName: profileInput.value });
+});
+
 const previewButton = document.querySelector('#previewBtn');
 const markdownTextarea = document.getElementById('markdown');
 const filenameInput = document.getElementById('filename');
@@ -545,10 +556,10 @@ function createFrontMatter(titleRaw, created_at = '') {
 	const slug = `prmt-${condensedTitle}-${created_at ? created_at.replace(/[^0-9]/g, "") : shortDate}`;
 	const frontmatter = `---
 title: "${rinseTitle}"
-author: 
 tags: []
 pagetitle: "${titleClean}"
 bot: "${hostUrl}"
+profile: "${document.getElementById('profileInput')?.value || ''}"
 type: aichat
 source: ${fullUrl}
 slug: ${slug}

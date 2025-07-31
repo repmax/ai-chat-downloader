@@ -89,9 +89,31 @@
 			flex-direction: column;
 			align-items: flex-start;
 		}
+.options-container {
+  display: flex;
+  flex-direction: column;
+  margin-left: 8px;
+  gap: 0px;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-row input[type="text"] {
+  width: 40px; /* Adjust as needed */
+  padding: 2px 2px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  font-size: 12px;
+}
 
 		label {
-			margin-top: 2px;
+			margin-top: 0px;
+			font-weight: bold;
+			font-weight: bold;
 			font-weight: bold;
 		}
 
@@ -161,7 +183,7 @@
 		}
 
 		@keyframes spin {
-			0% {
+			0% {profileInput
 				transform: rotate(0deg);
 			}
 
@@ -175,13 +197,22 @@
 <body>
 	<div class="container">
 		<p id="message" class="hidden">Not available on this webpage.</p>
+
 		<div class="header-container">
 			<button id="previewBtn" class="button">Preview</button>
 			<h1>AI Chat Downloader</h1>
-			<label style="margin-left:10px; font-size:12px;">
-        <input type="checkbox" id="showFullTree" />
-        Full tree
-    	</label>
+			  <div class="options-container">
+    <label style="font-size:12px;">
+      Full tree
+      <input type="checkbox" id="showFullTree" />
+    </label>
+    
+    <div class="profile-row">
+      <label for="profileInput" style="font-size:12px;">Profile:</label>
+      <input type="text" id="profileInput" placeholder="..." />
+    </div>
+  </div>
+
 			<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
 				<circle cx="12" cy="12" r="10" fill="#007bff" />
 				<rect x="11" y="7" width="2" height="2" fill="white" />
