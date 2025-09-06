@@ -336,7 +336,7 @@ function isRelevantRequest(request, { networkID, contentType = null, protocol = 
 		if (request.request.method !== protocol) return false;
 	}
 	if (request.request.url.includes("claude") && request.request.url.includes("latest")) return false;
-	if (request.request.url.includes("chatgpt") && request.request.url.includes("textdocs")) return false;
+	if (request.request.url.includes("chatgpt") && (request.request.url.includes("textdocs") || request.request.url.includes("stream_status"))) return false;
 	if (contentType) {
 		const contentTypeHeader = request.response.headers.find(header => header.name.toLowerCase() === 'content-type');
 		return contentTypeHeader?.value.includes(contentType);
@@ -544,8 +544,8 @@ function createFrontMatter(titleRaw, created_at = '') {
 	const stopwords = new Set(['i', 'write', 'you', 'me', 'the', 'is', 'are', 'for', 'in', 'this', 'who', 'what', 'when', 'how', 'why', 'should', 'can', 'did', 'do', 'tell', 'write', 'act', 'as', 'a', 'an']);
 	const titleClean = titleRaw.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, ' ').substring(0, 70);
 	const now = new Date();
-	const dashedDate = now.toISOString().substring(0, 10);
-	const shortDate = dashedDate.replace(/[^0-9]/g, "");
+	const dashedDate = now.toISOString().replace("T","_").substring(0,19);
+	const shortDate = dashedDate.replace(/[^0-9]/g, "").substring(0,8);
 	const rinseTitle = titleClean.split(' ')
 		.map(item => item.trim())
 		.filter((word) => !stopwords.has(word.toLowerCase()))
@@ -553,7 +553,7 @@ function createFrontMatter(titleRaw, created_at = '') {
 			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
 	const condensedTitle = rinseTitle.toLowerCase().trim().replace(/ /g, "_");
-	const slug = `prmt-${condensedTitle}-${created_at ? created_at.replace(/[^0-9]/g, "") : shortDate}`;
+	const slug = `prt-${hostUrl.replace(/[^a-zA-Z0-9]/g, '').substring(0,2)}${fullUrl.replace(/[^a-zA-Z0-9]/g, '').slice(-4)}-${condensedTitle}-${created_at ? created_at.replace(/[^0-9]/g, "") : shortDate}`;
 	const frontmatter = `---
 title: "${rinseTitle}"
 tags: []

@@ -1,5 +1,5 @@
 {
-  "name": "AI Chat Network Response Downloader",
+  "name": "AI Chat Downloader Devtool",
   "description": "Download AI chat conversations as a markdown file directly from the network response",
   "version": "1.0",
   "icons": {
@@ -11,6 +11,6 @@
   },
   "manifest_version": 3,
   "permissions": ["storage","webRequest","activeTab","tabs","scripting"],
-  "host_permissions": ["https://chat.deepseek.com/*","https://chatgpt.com/*","https://you.com/*","https://claude.ai/*","https://perplexity.ai/*","https://aistudio.google.com/*","https://x.com/*"],
+  "host_permissions": ["https://chat.minimax.io/*","https://www.kimi.com/*","https://chat.deepseek.com/*","https://chatgpt.com/*","https://you.com/*","https://claude.ai/*","https://perplexity.ai/*","https://aistudio.google.com/*","https://x.com/*"],
   "devtools_page": "devtools.html"
 }
