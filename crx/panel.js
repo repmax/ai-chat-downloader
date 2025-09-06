@@ -553,7 +553,7 @@ function createFrontMatter(titleRaw, created_at = '') {
 			shortened.length + word.length + 1 <= 50 ? shortened + word + ' ' : shortened, '')
 		.trim();
 	const condensedTitle = rinseTitle.toLowerCase().trim().replace(/ /g, "_");
-	const slug = `prt-${hostUrl.replace(/[^a-zA-Z0-9]/g, '').substring(0,2)}${fullUrl.replace(/[^a-zA-Z0-9]/g, '').slice(-4)}-${condensedTitle}-${created_at ? created_at.replace(/[^0-9]/g, "") : shortDate}`;
+	const slug = `prt-${(created_at ? created_at.replace(/[^0-9]/g, "") : shortDate).slice(2)}-${hostUrl.replace(/[^a-zA-Z0-9]/g, '').substring(0,2)}${fullUrl.replace(/[^a-zA-Z0-9]/g, '').slice(-4)}-${condensedTitle}`;
 	const frontmatter = `---
 title: "${rinseTitle}"
 tags: []
